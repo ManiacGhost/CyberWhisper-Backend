@@ -5,6 +5,9 @@ dotenv.config();
 
 import express, { Express, Request, Response } from 'express';
 import courseRoutes from './routes/courseRoutes';
+import blogRoutes from './routes/blogRoutes';
+import userRoutes from './routes/userRoutes';
+import skillRoutes from './routes/skillRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
@@ -22,6 +25,9 @@ app.get('/', (_req: Request, res: Response) => {
     version: '1.0.0',
     endpoints: {
       courses: '/api/courses',
+      blogs: '/api/blogs',
+      users: '/api/users',
+      skills: '/api/skills',
       health: '/',
     },
   });
@@ -29,6 +35,9 @@ app.get('/', (_req: Request, res: Response) => {
 
 // API Routes
 app.use('/api/courses', courseRoutes);
+app.use('/api/blogs', blogRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/skills', skillRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -47,3 +56,4 @@ app.listen(port, () => {
   console.log(`✓ Database: ${process.env.DB_NAME || 'cyberwhisper'}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
