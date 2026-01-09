@@ -2,8 +2,9 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { BlogRepository } from '../repositories/blogRepository';
 import { uploadImageToCloudinary, deleteImageFromCloudinary, extractPublicIdFromUrl } from '../utils/imageUpload';
-import { BlogResponse, CreateBlogRequest, UpdateBlogRequest } from '../types/blog';
+import { CreateBlogRequest, UpdateBlogRequest } from '../types/blog';
 import { asyncHandler } from '../middleware/errorHandler';
+import { generateUniqueSlug } from '../utils/slugGenerator';
 
 // Extend Express Request to include file property from multer
 interface MulterRequest extends Request {
@@ -92,24 +93,81 @@ router.post(
 /**
  * POST /api/blogs
  * Create a new blog post
- * Body: { title, slug, category_id, author_id, keywords?, description, thumbnail_url?, banner_url?, is_popular?, status? }
  */
 router.post(
   '/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { title, slug, category_id, author_id, keywords, description, thumbnail_url, banner_url, is_popular, status } = req.body;
+    const {
+      title,
+      slug,
+      category_id,
+      author_id,
+      content,
+      keywords,
+      short_description,
+      reading_time,
+      thumbnail_url,
+      banner_url,
+      image_alt_text,
+      image_caption,
+      is_popular,
+      status,
+      publish_date,
+      visibility,
+      seo_title,
+      seo_description,
+      focus_keyword,
+      canonical_url,
+      meta_robots,
+      allow_comments,
+      show_on_homepage,
+      is_sticky,
+    } = req.body;
 
     // Validate required fields
-    if (!title || !slug || !category_id || !author_id || !description) {
+    if (!title || !category_id || !author_id || !content) {
       res.status(400).json({
         success: false,
-        error: 'Missing required fields: title, slug, category_id, author_id, description',
+        error: 'Missing required fields: title, category_id, author_id, content',
+      });
+      return;
+    }
+
+    // Generate slug from title if not provided
+    const finalSlug = slug || generateUniqueSlug(title);
+
+    // Validate status enum
+    const validStatuses = ['DRAFT', 'PUBLISHED', 'SCHEDULED'];
+    if (status && !validStatuses.includes(status)) {
+      res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+      });
+      return;
+    }
+
+    // Validate visibility enum
+    const validVisibilities = ['PUBLIC', 'PRIVATE'];
+    if (visibility && !validVisibilities.includes(visibility)) {
+      res.status(400).json({
+        success: false,
+        error: `Invalid visibility. Must be one of: ${validVisibilities.join(', ')}`,
+      });
+      return;
+    }
+
+    // Validate meta_robots enum
+    const validMetaRobots = ['INDEX', 'NOINDEX'];
+    if (meta_robots && !validMetaRobots.includes(meta_robots)) {
+      res.status(400).json({
+        success: false,
+        error: `Invalid meta_robots. Must be one of: ${validMetaRobots.join(', ')}`,
       });
       return;
     }
 
     // Check if slug already exists
-    const existingBlog = await BlogRepository.getBlogBySlug(slug);
+    const existingBlog = await BlogRepository.getBlogBySlug(finalSlug);
     if (existingBlog) {
       res.status(400).json({
         success: false,
@@ -118,34 +176,45 @@ router.post(
       return;
     }
 
-    const blogData: CreateBlogRequest & { thumbnail_url?: string; banner_url?: string } = {
+    const blogData: CreateBlogRequest = {
       title,
-      slug,
+      slug: finalSlug,
       category_id,
       author_id,
+      content,
       keywords,
-      description,
+      short_description,
+      reading_time,
       thumbnail_url,
       banner_url,
+      image_alt_text,
+      image_caption,
       is_popular: is_popular || false,
-      status: status || 'ACTIVE',
+      status: status || 'DRAFT',
+      publish_date,
+      visibility: visibility || 'PUBLIC',
+      seo_title,
+      seo_description,
+      focus_keyword,
+      canonical_url,
+      meta_robots: meta_robots || 'INDEX',
+      allow_comments: allow_comments !== false,
+      show_on_homepage: show_on_homepage !== false,
+      is_sticky: is_sticky || false,
     };
 
     const blog = await BlogRepository.createBlog(blogData);
 
-    const response: BlogResponse = {
+    res.status(201).json({
       success: true,
       data: blog,
-    };
-
-    res.status(201).json(response);
+    });
   })
 );
 
 /**
  * GET /api/blogs
  * Get all blogs with pagination
- * Query params: page (default: 1), limit (default: 10), category_id?, status?, is_popular?
  */
 router.get(
   '/',
@@ -157,13 +226,14 @@ router.get(
     const filters = {
       category_id: req.query.category_id ? parseInt(req.query.category_id as string) : undefined,
       status: req.query.status as string | undefined,
+      visibility: req.query.visibility as string | undefined,
       is_popular: req.query.is_popular === 'true' ? true : req.query.is_popular === 'false' ? false : undefined,
     };
 
     const { blogs, total } = await BlogRepository.getAllBlogs(limit, offset, filters);
     const pages = Math.ceil(total / limit);
 
-    const response: BlogResponse = {
+    res.json({
       success: true,
       data: blogs,
       pagination: {
@@ -172,16 +242,13 @@ router.get(
         limit,
         pages,
       },
-    };
-
-    res.json(response);
+    });
   })
 );
 
 /**
  * GET /api/blogs/popular
  * Get popular blogs
- * Query params: limit (default: 5)
  */
 router.get(
   '/popular',
@@ -189,19 +256,50 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 5;
     const blogs = await BlogRepository.getPopularBlogs(limit);
 
-    const response: BlogResponse = {
+    res.json({
       success: true,
       data: blogs,
-    };
+    });
+  })
+);
 
-    res.json(response);
+/**
+ * GET /api/blogs/sticky
+ * Get sticky blogs
+ */
+router.get(
+  '/sticky',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const limit = parseInt(req.query.limit as string) || 5;
+    const blogs = await BlogRepository.getStickyBlogs(limit);
+
+    res.json({
+      success: true,
+      data: blogs,
+    });
+  })
+);
+
+/**
+ * GET /api/blogs/homepage
+ * Get homepage blogs
+ */
+router.get(
+  '/homepage',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const limit = parseInt(req.query.limit as string) || 10;
+    const blogs = await BlogRepository.getHomepageBlogs(limit);
+
+    res.json({
+      success: true,
+      data: blogs,
+    });
   })
 );
 
 /**
  * GET /api/blogs/category/:categoryId
  * Get blogs by category
- * Query params: page (default: 1), limit (default: 10)
  */
 router.get(
   '/category/:categoryId',
@@ -222,7 +320,7 @@ router.get(
     const { blogs, total } = await BlogRepository.getBlogsByCategory(categoryId, limit, offset);
     const pages = Math.ceil(total / limit);
 
-    const response: BlogResponse = {
+    res.json({
       success: true,
       data: blogs,
       pagination: {
@@ -231,16 +329,13 @@ router.get(
         limit,
         pages,
       },
-    };
-
-    res.json(response);
+    });
   })
 );
 
 /**
  * GET /api/blogs/search
  * Search blogs
- * Query params: q (search term), page (default: 1), limit (default: 10)
  */
 router.get(
   '/search',
@@ -262,7 +357,7 @@ router.get(
     const { blogs, total } = await BlogRepository.searchBlogs(searchTerm, limit, offset);
     const pages = Math.ceil(total / limit);
 
-    const response: BlogResponse = {
+    res.json({
       success: true,
       data: blogs,
       pagination: {
@@ -271,9 +366,7 @@ router.get(
         limit,
         pages,
       },
-    };
-
-    res.json(response);
+    });
   })
 );
 
@@ -304,12 +397,10 @@ router.get(
       return;
     }
 
-    const response: BlogResponse = {
+    res.json({
       success: true,
       data: blog,
-    };
-
-    res.json(response);
+    });
   })
 );
 
@@ -332,19 +423,16 @@ router.get(
       return;
     }
 
-    const response: BlogResponse = {
+    res.json({
       success: true,
       data: blog,
-    };
-
-    res.json(response);
+    });
   })
 );
 
 /**
  * PUT /api/blogs/:id
  * Update blog post
- * Body: Partial blog data to update
  */
 router.put(
   '/:id',
@@ -381,6 +469,31 @@ router.put(
       }
     }
 
+    // Validate enums if provided
+    if (req.body.status && !['DRAFT', 'PUBLISHED', 'SCHEDULED'].includes(req.body.status)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid status. Must be one of: DRAFT, PUBLISHED, SCHEDULED',
+      });
+      return;
+    }
+
+    if (req.body.visibility && !['PUBLIC', 'PRIVATE'].includes(req.body.visibility)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid visibility. Must be one of: PUBLIC, PRIVATE',
+      });
+      return;
+    }
+
+    if (req.body.meta_robots && !['INDEX', 'NOINDEX'].includes(req.body.meta_robots)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid meta_robots. Must be one of: INDEX, NOINDEX',
+      });
+      return;
+    }
+
     const updateData: UpdateBlogRequest = req.body;
     const updatedBlog = await BlogRepository.updateBlog(id, updateData);
 
@@ -392,12 +505,10 @@ router.put(
       return;
     }
 
-    const response: BlogResponse = {
+    res.json({
       success: true,
       data: updatedBlog,
-    };
-
-    res.json(response);
+    });
   })
 );
 
@@ -455,7 +566,7 @@ router.delete(
 
     res.json({
       success: true,
-      data: { message: 'Blog deleted successfully' },
+      message: 'Blog deleted successfully',
     });
   })
 );

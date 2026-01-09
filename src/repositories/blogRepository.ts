@@ -5,25 +5,49 @@ export class BlogRepository {
   /**
    * Create a new blog post
    */
-  static async createBlog(data: CreateBlogRequest & { thumbnail_url?: string; banner_url?: string }): Promise<Blog> {
+  static async createBlog(data: CreateBlogRequest): Promise<Blog> {
     const {
       title,
       slug,
       category_id,
       author_id,
+      content,
       keywords,
-      description,
+      short_description,
+      reading_time,
       thumbnail_url,
       banner_url,
+      image_alt_text,
+      image_caption,
       is_popular = false,
-      status = 'ACTIVE',
+      status = 'DRAFT',
+      publish_date,
+      visibility = 'PUBLIC',
+      seo_title,
+      seo_description,
+      focus_keyword,
+      canonical_url,
+      meta_robots = 'INDEX',
+      allow_comments = true,
+      show_on_homepage = true,
+      is_sticky = false,
     } = data;
 
     const result = await query(
-      `INSERT INTO blogs_CW (title, slug, category_id, author_id, keywords, description, thumbnail_url, banner_url, is_popular, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO blogs_cw (
+        title, slug, category_id, author_id, content, keywords, short_description, 
+        reading_time, thumbnail_url, banner_url, image_alt_text, image_caption, 
+        is_popular, status, publish_date, visibility, seo_title, seo_description, 
+        focus_keyword, canonical_url, meta_robots, allow_comments, show_on_homepage, is_sticky
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
        RETURNING *`,
-      [title, slug, category_id, author_id, keywords || null, description, thumbnail_url || null, banner_url || null, is_popular, status]
+      [
+        title, slug, category_id, author_id, content, keywords || null, short_description || null,
+        reading_time || null, thumbnail_url || null, banner_url || null, image_alt_text || null, 
+        image_caption || null, is_popular, status, publish_date || null, visibility, 
+        seo_title || null, seo_description || null, focus_keyword || null, canonical_url || null, 
+        meta_robots, allow_comments, show_on_homepage, is_sticky
+      ]
     );
 
     return result.rows[0] as Blog;
@@ -35,7 +59,7 @@ export class BlogRepository {
   static async getAllBlogs(
     limit: number = 10,
     offset: number = 0,
-    filters?: { category_id?: number; status?: string; is_popular?: boolean }
+    filters?: { category_id?: number; status?: string; visibility?: string; is_popular?: boolean }
   ): Promise<{ blogs: Blog[]; total: number }> {
     let whereClause = '';
     const params: any[] = [];
@@ -51,6 +75,10 @@ export class BlogRepository {
         conditions.push(`status = $${paramIndex++}`);
         params.push(filters.status);
       }
+      if (filters.visibility) {
+        conditions.push(`visibility = $${paramIndex++}`);
+        params.push(filters.visibility);
+      }
       if (filters.is_popular !== undefined) {
         conditions.push(`is_popular = $${paramIndex++}`);
         params.push(filters.is_popular);
@@ -61,13 +89,13 @@ export class BlogRepository {
     }
 
     // Get total count
-    const countQuery = `SELECT COUNT(*) as count FROM blogs_CW ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as count FROM blogs_cw ${whereClause}`;
     const countResult = await query(countQuery, params.slice(0, paramIndex - 1));
     const total = parseInt(countResult.rows[0].count);
 
     // Get blogs with pagination
     const blogsQuery = `
-      SELECT * FROM blogs_CW 
+      SELECT * FROM blogs_cw 
       ${whereClause}
       ORDER BY created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -82,7 +110,7 @@ export class BlogRepository {
    * Get blog by ID
    */
   static async getBlogById(id: number): Promise<Blog | null> {
-    const result = await query('SELECT * FROM blogs_CW WHERE id = $1', [id]);
+    const result = await query('SELECT * FROM blogs_cw WHERE id = $1', [id]);
     return result.rows.length > 0 ? (result.rows[0] as Blog) : null;
   }
 
@@ -90,7 +118,7 @@ export class BlogRepository {
    * Get blog by slug
    */
   static async getBlogBySlug(slug: string): Promise<Blog | null> {
-    const result = await query('SELECT * FROM blogs_CW WHERE slug = $1', [slug]);
+    const result = await query('SELECT * FROM blogs_cw WHERE slug = $1', [slug]);
     return result.rows.length > 0 ? (result.rows[0] as Blog) : null;
   }
 
@@ -117,7 +145,7 @@ export class BlogRepository {
     values.push(id);
 
     const updateQuery = `
-      UPDATE blogs_CW 
+      UPDATE blogs_cw 
       SET ${updates.join(', ')} 
       WHERE id = $${paramIndex}
       RETURNING *
@@ -131,7 +159,7 @@ export class BlogRepository {
    * Delete blog post
    */
   static async deleteBlog(id: number): Promise<boolean> {
-    const result = await query('DELETE FROM blogs_CW WHERE id = $1', [id]);
+    const result = await query('DELETE FROM blogs_cw WHERE id = $1', [id]);
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
@@ -140,7 +168,7 @@ export class BlogRepository {
    */
   static async getPopularBlogs(limit: number = 5): Promise<Blog[]> {
     const result = await query(
-      `SELECT * FROM blogs_CW WHERE is_popular = true AND status = 'ACTIVE' ORDER BY created_at DESC LIMIT $1`,
+      `SELECT * FROM blogs_cw WHERE is_popular = true AND status = 'PUBLISHED' AND visibility = 'PUBLIC' ORDER BY created_at DESC LIMIT $1`,
       [limit]
     );
     return result.rows as Blog[];
@@ -150,15 +178,15 @@ export class BlogRepository {
    * Get blogs by category
    */
   static async getBlogsByCategory(categoryId: number, limit: number = 10, offset: number = 0): Promise<{ blogs: Blog[]; total: number }> {
-    const countResult = await query('SELECT COUNT(*) as count FROM blogs_CW WHERE category_id = $1 AND status = $2', [
-      categoryId,
-      'ACTIVE',
-    ]);
+    const countResult = await query(
+      'SELECT COUNT(*) as count FROM blogs_cw WHERE category_id = $1 AND status = $2 AND visibility = $3',
+      [categoryId, 'PUBLISHED', 'PUBLIC']
+    );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM blogs_CW WHERE category_id = $1 AND status = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
-      [categoryId, 'ACTIVE', limit, offset]
+      `SELECT * FROM blogs_cw WHERE category_id = $1 AND status = $2 AND visibility = $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5`,
+      [categoryId, 'PUBLISHED', 'PUBLIC', limit, offset]
     );
 
     return { blogs: result.rows as Blog[], total };
@@ -171,16 +199,38 @@ export class BlogRepository {
     const searchPattern = `%${searchTerm}%`;
 
     const countResult = await query(
-      `SELECT COUNT(*) as count FROM blogs_CW WHERE (title ILIKE $1 OR keywords ILIKE $1) AND status = $2`,
-      [searchPattern, 'ACTIVE']
+      `SELECT COUNT(*) as count FROM blogs_cw WHERE (title ILIKE $1 OR keywords ILIKE $1) AND status = $2 AND visibility = $3`,
+      [searchPattern, 'PUBLISHED', 'PUBLIC']
     );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM blogs_CW WHERE (title ILIKE $1 OR keywords ILIKE $1) AND status = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
-      [searchPattern, 'ACTIVE', limit, offset]
+      `SELECT * FROM blogs_cw WHERE (title ILIKE $1 OR keywords ILIKE $1) AND status = $2 AND visibility = $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5`,
+      [searchPattern, 'PUBLISHED', 'PUBLIC', limit, offset]
     );
 
     return { blogs: result.rows as Blog[], total };
+  }
+
+  /**
+   * Get sticky blogs
+   */
+  static async getStickyBlogs(limit: number = 5): Promise<Blog[]> {
+    const result = await query(
+      `SELECT * FROM blogs_cw WHERE is_sticky = true AND status = 'PUBLISHED' AND visibility = 'PUBLIC' ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    );
+    return result.rows as Blog[];
+  }
+
+  /**
+   * Get homepage blogs
+   */
+  static async getHomepageBlogs(limit: number = 10): Promise<Blog[]> {
+    const result = await query(
+      `SELECT * FROM blogs_cw WHERE show_on_homepage = true AND status = 'PUBLISHED' AND visibility = 'PUBLIC' ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    );
+    return result.rows as Blog[];
   }
 }
