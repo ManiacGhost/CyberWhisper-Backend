@@ -9,6 +9,7 @@ import courseRoutes from './routes/courseRoutes';
 import blogRoutes from './routes/blogRoutes';
 import userRoutes from './routes/userRoutes';
 import skillRoutes from './routes/skillRoutes';
+import quoteRoutes from './routes/quoteRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
@@ -60,6 +61,7 @@ app.get('/', (_req: Request, res: Response) => {
       blogs: '/api/blogs',
       users: '/api/users',
       skills: '/api/skills',
+      quotes: '/api/quotes',
       health: '/',
     },
   });
@@ -70,6 +72,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/skills', skillRoutes);
+app.use('/api/quotes', quoteRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
