@@ -7,6 +7,7 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import courseRoutes from './routes/courseRoutes';
 import blogRoutes from './routes/blogRoutes';
+import batchRoutes from './routes/batchRoutes';
 import userRoutes from './routes/userRoutes';
 import skillRoutes from './routes/skillRoutes';
 import quoteRoutes from './routes/quoteRoutes';
@@ -59,6 +60,7 @@ app.get('/', (_req: Request, res: Response) => {
     endpoints: {
       courses: '/api/courses',
       blogs: '/api/blogs',
+      batches: '/api/batches',
       users: '/api/users',
       skills: '/api/skills',
       quotes: '/api/quotes',
@@ -70,6 +72,7 @@ app.get('/', (_req: Request, res: Response) => {
 // API Routes
 app.use('/api/courses', courseRoutes);
 app.use('/api/blogs', blogRoutes);
+app.use('/api/batches', batchRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/quotes', quoteRoutes);
