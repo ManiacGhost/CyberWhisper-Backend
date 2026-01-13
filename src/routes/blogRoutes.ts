@@ -213,11 +213,11 @@ router.post(
 );
 
 /**
- * GET /api/blogs
+ * GET /api/blogs/list
  * Get all blogs with pagination
  */
 router.get(
-  '/',
+  '/list',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
