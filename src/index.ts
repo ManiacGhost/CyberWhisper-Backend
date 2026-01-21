@@ -12,6 +12,7 @@ import userRoutes from './routes/userRoutes';
 import skillRoutes from './routes/skillRoutes';
 import quoteRoutes from './routes/quoteRoutes';
 import newsletterRoutes from './routes/newsletterRoutes';
+import galleryRoutes from './routes/galleryRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
@@ -66,6 +67,7 @@ app.get('/', (_req: Request, res: Response) => {
       skills: '/api/skills',
       quotes: '/api/quotes',
       newsletter: '/api/newsletter',
+      gallery: '/api/gallery',
       health: '/',
     },
   });
@@ -79,6 +81,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/gallery', galleryRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
