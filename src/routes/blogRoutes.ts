@@ -304,7 +304,7 @@ router.get(
 router.get(
   '/category/:categoryId',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const categoryId = parseInt(req.params.categoryId);
+    const categoryId = parseInt(req.params.categoryId as string);
     if (isNaN(categoryId)) {
       res.status(400).json({
         success: false,
@@ -377,7 +377,7 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       res.status(400).json({
@@ -411,7 +411,7 @@ router.get(
 router.get(
   '/slug/:slug',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { slug } = req.params;
+    const { slug } = req.params as { slug: string };
 
     const blog = await BlogRepository.getBlogBySlug(slug);
 
@@ -437,7 +437,7 @@ router.get(
 router.put(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       res.status(400).json({
@@ -519,7 +519,7 @@ router.put(
 router.delete(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       res.status(400).json({

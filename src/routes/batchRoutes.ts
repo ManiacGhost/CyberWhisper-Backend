@@ -133,7 +133,7 @@ router.get(
 router.get(
   '/course/:courseId',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseInt(req.params.courseId as string);
     if (isNaN(courseId)) {
       res.status(400).json({
         success: false,
@@ -169,7 +169,7 @@ router.get(
 router.get(
   '/instructor/:instructorId',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const instructorId = parseInt(req.params.instructorId);
+    const instructorId = parseInt(req.params.instructorId as string);
     if (isNaN(instructorId)) {
       res.status(400).json({
         success: false,
@@ -242,7 +242,7 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       res.status(400).json({
@@ -276,7 +276,7 @@ router.get(
 router.post(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       res.status(400).json({
@@ -330,7 +330,7 @@ router.post(
 router.delete(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       res.status(400).json({

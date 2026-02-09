@@ -13,6 +13,7 @@ import skillRoutes from './routes/skillRoutes';
 import quoteRoutes from './routes/quoteRoutes';
 import newsletterRoutes from './routes/newsletterRoutes';
 import galleryRoutes from './routes/galleryRoutes';
+import adminAuthRoutes from './routes/adminAuthRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
@@ -68,6 +69,7 @@ app.get('/', (_req: Request, res: Response) => {
       quotes: '/api/quotes',
       newsletter: '/api/newsletter',
       gallery: '/api/gallery',
+      adminAuth: '/api/admin',
       health: '/',
     },
   });
@@ -82,6 +84,7 @@ app.use('/api/skills', skillRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/gallery', galleryRoutes);
+app.use('/api/admin', adminAuthRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

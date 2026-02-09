@@ -114,7 +114,7 @@ router.get(
 router.get(
   '/check/:email',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { email } = req.params;
+    const { email } = req.params as { email: string };
 
     try {
       const subscriber = await NewsletterRepository.getByEmail(email);
@@ -185,7 +185,7 @@ router.delete(
 router.delete(
   '/subscribers/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
 
     try {
       const subscriberId = parseInt(id, 10);

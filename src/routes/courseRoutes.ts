@@ -49,7 +49,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       return res.status(400).json({
@@ -88,7 +88,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.get('/category/:categoryId', async (req: Request, res: Response) => {
   try {
-    const categoryId = parseInt(req.params.categoryId);
+    const categoryId = parseInt(req.params.categoryId as string);
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
@@ -130,7 +130,7 @@ router.get('/category/:categoryId', async (req: Request, res: Response) => {
  */
 router.get('/creator/:creatorId', async (req: Request, res: Response) => {
   try {
-    const creatorId = parseInt(req.params.creatorId);
+    const creatorId = parseInt(req.params.creatorId as string);
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;

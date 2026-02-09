@@ -148,7 +148,7 @@ router.get(
 router.get(
   '/email/:email',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { email } = req.params;
+    const { email } = req.params as { email: string };
 
     if (!email) {
       res.status(400).json({

@@ -68,7 +68,7 @@ router.post(
 router.get(
   '/user/:userId',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const userId = parseInt(req.params.userId);
+    const userId = parseInt(req.params.userId as string);
 
     if (isNaN(userId)) {
       res.status(400).json({
@@ -106,7 +106,7 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       res.status(400).json({
@@ -143,7 +143,7 @@ router.get(
 router.post(
   '/:id/update',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { skill } = req.body;
 
     if (isNaN(id)) {
@@ -198,7 +198,7 @@ router.post(
 router.delete(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
       res.status(400).json({
@@ -242,7 +242,7 @@ router.delete(
 router.get(
   '/search/:skill',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { skill } = req.params;
+    const { skill } = req.params as { skill: string };
 
     if (!skill || skill.trim().length < 2) {
       res.status(400).json({

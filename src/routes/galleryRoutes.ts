@@ -114,7 +114,7 @@ router.get(
 router.get(
   '/context/:context',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { context } = req.params;
+    const { context } = req.params as { context: string };
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = parseInt(req.query.offset as string) || 0;
 
@@ -142,7 +142,7 @@ router.get(
   '/:id',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
-    const galleryImage = await GalleryRepository.getGalleryImageById(parseInt(id));
+    const galleryImage = await GalleryRepository.getGalleryImageById(parseInt(id as string));
 
     if (!galleryImage) {
       res.status(404).json({ success: false, error: 'Gallery image not found' });
@@ -173,7 +173,7 @@ router.post(
       updateData.tags = (updateData.tags as string).split(',').map((t: string) => t.trim()) as any;
     }
 
-    const galleryImage = await GalleryRepository.updateGalleryImage(parseInt(id), updateData);
+    const galleryImage = await GalleryRepository.updateGalleryImage(parseInt(id as string), updateData);
 
     if (!galleryImage) {
       res.status(404).json({ success: false, error: 'Gallery image not found' });
@@ -199,7 +199,7 @@ router.post(
     }
 
     const { id } = req.params;
-    const galleryImage = await GalleryRepository.getGalleryImageById(parseInt(id));
+    const galleryImage = await GalleryRepository.getGalleryImageById(parseInt(id as string));
 
     if (!galleryImage) {
       res.status(404).json({ success: false, error: 'Gallery image not found' });
@@ -219,7 +219,7 @@ router.post(
     const { query } = await import('../config/database');
     const updateResult = await query(
       `UPDATE gallery_cw SET image_url = $1, public_id = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
-      [uploadResult.url, uploadResult.publicId, parseInt(id)]
+      [uploadResult.url, uploadResult.publicId, parseInt(id as string)]
     );
 
     const updatedImage = updateResult.rows[0];
@@ -243,7 +243,7 @@ router.delete(
     const { id } = req.params;
     const deleteFromCloudinary = req.query.deleteFromCloudinary !== 'false';
 
-    const galleryImage = await GalleryRepository.getGalleryImageById(parseInt(id));
+    const galleryImage = await GalleryRepository.getGalleryImageById(parseInt(id as string));
 
     if (!galleryImage) {
       res.status(404).json({ success: false, error: 'Gallery image not found' });
@@ -254,7 +254,7 @@ router.delete(
       await deleteImageFromCloudinary(galleryImage.public_id);
     }
 
-    const deleted = await GalleryRepository.deleteGalleryImage(parseInt(id));
+    const deleted = await GalleryRepository.deleteGalleryImage(parseInt(id as string));
 
     if (!deleted) {
       res.status(500).json({ success: false, error: 'Failed to delete gallery image' });
