@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import crypto from 'crypto';
 import { UserRepository } from '../repositories/userRepository';
 import { OTPRepository } from '../repositories/otpRepository';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AdminLoginRequest, AdminLoginResponse, AdminOTPVerifyResponse, VerifyOTPRequest } from '../types/otp';
 import { sendOTPToAdmin, verifyOTPCode, handleFailedOTPAttempt } from '../utils/otpService';
+import { generateJWTToken, verifyPassword } from '../utils/jwtService';
 
 const router = Router();
 
@@ -58,8 +58,7 @@ router.post(
       }
 
       // Verify password
-      const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
-      if (passwordHash !== user.password_hash) {
+      if (!verifyPassword(password, user.password_hash)) {
         res.status(401).json({
           success: false,
           error: 'Invalid email or password',
@@ -162,17 +161,14 @@ router.post(
         return;
       }
 
-      // Generate JWT token or session token
-      // For now, we'll create a simple payload that can be used with JWT
-      const token = Buffer.from(
-        JSON.stringify({
-          userId: user.id,
-          email: user.email,
-          role: user.role,
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours
-        })
-      ).toString('base64');
+      // Generate JWT token
+      const token = generateJWTToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.first_name,
+        lastName: user.last_name,
+      });
 
       const response: AdminOTPVerifyResponse = {
         success: true,

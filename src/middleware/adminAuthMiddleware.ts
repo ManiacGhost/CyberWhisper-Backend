@@ -1,24 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
+import { verifyJWTToken, extractTokenFromHeader, DecodedToken } from '../utils/jwtService';
 
-export interface AdminRequest extends Request {
-  admin?: {
-    userId: number;
-    email: string;
-    role: string;
-    iat: number;
-    exp: number;
-  };
+export interface AuthRequest extends Request {
+  user?: DecodedToken;
 }
 
 /**
- * Middleware to verify admin authentication token
+ * Middleware to verify JWT authentication token
  * Token is passed in Authorization header: "Bearer <token>"
  */
-export const adminAuthMiddleware = (req: AdminRequest, res: Response, next: NextFunction): void => {
+export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractTokenFromHeader(req.headers.authorization);
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       res.status(401).json({
         success: false,
         error: 'Authorization token is required',
@@ -26,41 +21,21 @@ export const adminAuthMiddleware = (req: AdminRequest, res: Response, next: Next
       return;
     }
 
-    const token = authHeader.slice(7); // Remove "Bearer " prefix
+    const decoded = verifyJWTToken(token);
 
-    // Decode token (it's base64 encoded JSON)
-    try {
-      const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
-
-      // Check token expiration
-      if (decoded.exp * 1000 < Date.now()) {
-        res.status(401).json({
-          success: false,
-          error: 'Token has expired',
-        });
-        return;
-      }
-
-      // Verify role is ADMIN
-      if (decoded.role !== 'ADMIN') {
-        res.status(403).json({
-          success: false,
-          error: 'Only administrators can access this endpoint',
-        });
-        return;
-      }
-
-      // Attach admin info to request
-      req.admin = decoded;
-      next();
-    } catch (parseError) {
+    if (!decoded) {
       res.status(401).json({
         success: false,
-        error: 'Invalid token format',
+        error: 'Invalid or expired token',
       });
+      return;
     }
+
+    // Attach user info to request
+    req.user = decoded;
+    next();
   } catch (error) {
-    console.error('Error in admin auth middleware:', error);
+    console.error('Error in auth middleware:', error);
     res.status(500).json({
       success: false,
       error: 'An error occurred during authentication',
@@ -69,47 +44,49 @@ export const adminAuthMiddleware = (req: AdminRequest, res: Response, next: Next
 };
 
 /**
- * Middleware to verify user is authenticated (no specific role required)
+ * Middleware to verify admin role
+ * Must be used after authMiddleware
  */
-export const authMiddleware = (req: AdminRequest, res: Response, next: NextFunction): void => {
-  try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({
-        success: false,
-        error: 'Authorization token is required',
-      });
-      return;
-    }
-
-    const token = authHeader.slice(7);
-
-    try {
-      const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
-
-      // Check token expiration
-      if (decoded.exp * 1000 < Date.now()) {
-        res.status(401).json({
-          success: false,
-          error: 'Token has expired',
-        });
-        return;
-      }
-
-      req.admin = decoded;
-      next();
-    } catch (parseError) {
-      res.status(401).json({
-        success: false,
-        error: 'Invalid token format',
-      });
-    }
-  } catch (error) {
-    console.error('Error in auth middleware:', error);
-    res.status(500).json({
+export const adminOnlyMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    res.status(401).json({
       success: false,
-      error: 'An error occurred during authentication',
+      error: 'Authentication required',
     });
+    return;
   }
+
+  if (req.user.role !== 'ADMIN') {
+    res.status(403).json({
+      success: false,
+      error: 'Only administrators can access this endpoint',
+    });
+    return;
+  }
+
+  next();
+};
+
+/**
+ * Middleware to verify instructor role
+ * Must be used after authMiddleware
+ */
+export const instructorOnlyMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      error: 'Authentication required',
+    });
+    return;
+  }
+
+  if (req.user.role !== 'INSTRUCTOR' && req.user.role !== 'ADMIN') {
+    res.status(403).json({
+      success: false,
+      error: 'Only instructors and administrators can access this endpoint',
+    });
+    return;
+  }
+
+  next();
 };

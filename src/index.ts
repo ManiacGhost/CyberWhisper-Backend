@@ -13,6 +13,7 @@ import skillRoutes from './routes/skillRoutes';
 import quoteRoutes from './routes/quoteRoutes';
 import newsletterRoutes from './routes/newsletterRoutes';
 import galleryRoutes from './routes/galleryRoutes';
+import authRoutes from './routes/authRoutes';
 import adminAuthRoutes from './routes/adminAuthRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -61,6 +62,8 @@ app.get('/', (_req: Request, res: Response) => {
     status: 'running',
     version: '1.0.0',
     endpoints: {
+      auth: '/api/auth',
+      adminAuth: '/api/admin',
       courses: '/api/courses',
       blogs: '/api/blogs',
       batches: '/api/batches',
@@ -69,7 +72,6 @@ app.get('/', (_req: Request, res: Response) => {
       quotes: '/api/quotes',
       newsletter: '/api/newsletter',
       gallery: '/api/gallery',
-      adminAuth: '/api/admin',
       health: '/',
     },
   });
@@ -84,6 +86,7 @@ app.use('/api/skills', skillRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/gallery', galleryRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminAuthRoutes);
 
 // 404 handler
