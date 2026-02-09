@@ -299,3 +299,43 @@ export const sendAdminNotification = async (
     html: htmlContent,
   });
 };
+
+/**
+ * Send newsletter to multiple recipients
+ */
+export const sendNewsletterToBulk = async (
+  recipients: string[],
+  subject: string,
+  htmlContent: string,
+  plainText?: string
+): Promise<{ successCount: number; failedCount: number; failedEmails: string[] }> => {
+  const failedEmails: string[] = [];
+  let successCount = 0;
+
+  // Send to each subscriber
+  for (const email of recipients) {
+    try {
+      const mailOptions = {
+        from: process.env.BREVO_FROM_EMAIL || process.env.BREVO_EMAIL || 'noreply@cyberwhisper.com',
+        to: email,
+        subject,
+        html: htmlContent,
+        text: plainText,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`✓ Newsletter sent to ${email}:`, info.messageId);
+      successCount++;
+    } catch (error) {
+      console.error(`✗ Failed to send newsletter to ${email}:`, error);
+      failedEmails.push(email);
+    }
+  }
+
+  return {
+    successCount,
+    failedCount: failedEmails.length,
+    failedEmails,
+  };
+};
+

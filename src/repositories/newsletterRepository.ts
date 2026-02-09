@@ -92,6 +92,19 @@ export class NewsletterRepository {
   }
 
   /**
+   * Get all newsletter subscribers without pagination
+   */
+  static async getAllSubscribersForBulkSend(): Promise<NewsletterSubscriber[]> {
+    const result = await query(
+      `SELECT id, email, created_at
+       FROM newsletter_subscribers
+       ORDER BY created_at DESC`
+    );
+
+    return result.rows as NewsletterSubscriber[];
+  }
+
+  /**
    * Get subscriber count
    */
   static async getTotal(): Promise<number> {

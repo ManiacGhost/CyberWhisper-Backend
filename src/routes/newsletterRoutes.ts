@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { NewsletterRepository } from '../repositories/newsletterRepository';
 import { asyncHandler } from '../middleware/errorHandler';
-import { SubscribeRequest, ListSubscribersResponse, NewsletterResponse } from '../types/newsletter';
+import { SubscribeRequest, ListSubscribersResponse, NewsletterResponse, SendNewsletterRequest, SendNewsletterResponse } from '../types/newsletter';
+import { authMiddleware, AuthRequest, instructorOnlyMiddleware } from '../middleware/adminAuthMiddleware';
+import { sendNewsletterToBulk } from '../utils/emailService';
 
 const router = Router();
 
@@ -240,6 +242,162 @@ router.get(
       res.status(500).json({
         success: false,
         error: 'Failed to get subscriber count',
+      });
+    }
+  })
+);
+
+/**
+ * POST /api/newsletter/send
+ * Send newsletter to all subscribers
+ * Requires authentication (admin/instructor only)
+ * Body: { subject, content (HTML), plainText? }
+ */
+router.post(
+  '/send',
+  authMiddleware,
+  instructorOnlyMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
+    const { subject, content, plainText } = req.body as SendNewsletterRequest;
+
+    // Validation
+    if (!subject || !content) {
+      res.status(400).json({
+        success: false,
+        error: 'Subject and content are required',
+      });
+      return;
+    }
+
+    if (subject.trim().length < 3) {
+      res.status(400).json({
+        success: false,
+        error: 'Subject must be at least 3 characters',
+      });
+      return;
+    }
+
+    if (content.trim().length < 10) {
+      res.status(400).json({
+        success: false,
+        error: 'Content must be at least 10 characters',
+      });
+      return;
+    }
+
+    try {
+      // Get all subscribers
+      const subscribers = await NewsletterRepository.getAllSubscribersForBulkSend();
+
+      if (subscribers.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'No subscribers found',
+        });
+        return;
+      }
+
+      // Extract email addresses
+      const emails = subscribers.map(sub => sub.email);
+
+      // Create newsletter wrapper HTML
+      const wrappedHtml = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              background-color: #f4f4f4;
+              margin: 0;
+              padding: 0;
+            }
+            .container {
+              max-width: 600px;
+              margin: 0 auto;
+              background-color: #ffffff;
+              padding: 30px;
+              border-radius: 8px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+              margin-top: 20px;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #007bff;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              color: #2c3e50;
+              margin: 0;
+              font-size: 24px;
+            }
+            .content {
+              margin: 20px 0;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 30px;
+              padding-top: 20px;
+              border-top: 1px solid #eee;
+              color: #7f8c8d;
+              font-size: 12px;
+            }
+            .unsubscribe {
+              margin-top: 10px;
+            }
+            .unsubscribe a {
+              color: #007bff;
+              text-decoration: none;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>📬 CyberWhisper Newsletter</h1>
+            </div>
+
+            <div class="content">
+              ${content}
+            </div>
+
+            <div class="footer">
+              <p>© 2026 CyberWhisper. All rights reserved.</p>
+              <div class="unsubscribe">
+                <p>You received this email because you're subscribed to CyberWhisper newsletter.</p>
+                <p><a href="http://localhost:3000/api/newsletter/unsubscribe">Unsubscribe</a> from future newsletters</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Send newsletter to all subscribers
+      const result = await sendNewsletterToBulk(emails, subject, wrappedHtml, plainText);
+
+      const response: SendNewsletterResponse = {
+        success: true,
+        message: `Newsletter sent successfully`,
+        data: {
+          totalSubscribers: subscribers.length,
+          sentCount: result.successCount,
+          failedCount: result.failedCount,
+          failedEmails: result.failedEmails.length > 0 ? result.failedEmails : undefined,
+        },
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error('Error sending newsletter:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send newsletter',
       });
     }
   })
