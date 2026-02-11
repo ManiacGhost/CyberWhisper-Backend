@@ -39,11 +39,11 @@ router.post(
         return;
       }
 
-      // Check if user is admin
-      if (user.role !== 'ADMIN') {
+      // Check if user has admin access (admin, instructor, or student)
+      if (!['ADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
         res.status(403).json({
           success: false,
-          error: 'Only administrators can access this endpoint',
+          error: 'User does not have access to this endpoint',
         });
         return;
       }
@@ -138,11 +138,11 @@ router.post(
         return;
       }
 
-      // Check if user is admin
-      if (user.role !== 'ADMIN') {
+      // Check if user has admin access (admin, instructor, or student)
+      if (!['ADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
         res.status(403).json({
           success: false,
-          error: 'Only administrators can access this endpoint',
+          error: 'User does not have access to this endpoint',
         });
         return;
       }
@@ -227,11 +227,11 @@ router.post(
         return;
       }
 
-      // Check if user is admin
-      if (user.role !== 'ADMIN') {
+      // Check if user has admin access (admin, instructor, or student)
+      if (!['ADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
         res.status(403).json({
           success: false,
-          error: 'Only administrators can access this endpoint',
+          error: 'User does not have access to this endpoint',
         });
         return;
       }
