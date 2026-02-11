@@ -15,6 +15,9 @@ import newsletterRoutes from './routes/newsletterRoutes';
 import galleryRoutes from './routes/galleryRoutes';
 import authRoutes from './routes/authRoutes';
 import adminAuthRoutes from './routes/adminAuthRoutes';
+import deployTeamTrainingRoutes from './routes/deployTeamTrainingRoutes';
+import brochureDownloadRoutes from './routes/brochureDownloadRoutes';
+import courseEnrollmentRoutes from './routes/courseEnrollmentRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
@@ -71,7 +74,10 @@ app.get('/', (_req: Request, res: Response) => {
       skills: '/api/skills',
       quotes: '/api/quotes',
       newsletter: '/api/newsletter',
+      brochureDownloads: '/api/brochure-downloads',
+      courseEnrollments: '/api/course-enrollments',
       gallery: '/api/gallery',
+      deployTeamTraining: '/api/deploy-team-training',
       health: '/',
     },
   });
@@ -87,7 +93,10 @@ app.use('/api/quotes', quoteRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/deploy-team-training', deployTeamTrainingRoutes);
 app.use('/api/admin', adminAuthRoutes);
+app.use('/api/brochure-downloads', brochureDownloadRoutes);
+app.use('/api/course-enrollments', courseEnrollmentRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
