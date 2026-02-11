@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { CourseRepository } from '../repositories/courseRepository';
-import { CourseResponse } from '../types/course';
+import { CourseResponse, Course } from '../types/course';
+import { authMiddleware, adminOnlyMiddleware, AuthRequest } from '../middleware/adminAuthMiddleware';
 
 const router = Router();
 
@@ -226,7 +227,7 @@ router.get('/free/list', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/courses/search - Search courses
+ * GET /api/courses/search/query - Search courses
  * Query params: q (search query), page (default: 1), limit (default: 10)
  */
 router.get('/search/query', async (req: Request, res: Response) => {
@@ -263,6 +264,49 @@ router.get('/search/query', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to search courses',
+    });
+  }
+});
+
+/**
+ * GET /api/courses/search/fuzzy - Fuzzy search courses by keywords
+ * Searches across: title, short_description, description, outcomes, section, course_type
+ * Query params: q (keywords), page (default: 1), limit (default: 10)
+ */
+router.get('/search/fuzzy', async (req: Request, res: Response) => {
+  try {
+    const keywords = req.query.q as string;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+
+    if (!keywords || keywords.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Keywords are required for fuzzy search',
+      });
+    }
+
+    const { courses, total } = await CourseRepository.fuzzySearchCourses(keywords, limit, offset);
+    const pages = Math.ceil(total / limit);
+
+    const response: CourseResponse = {
+      success: true,
+      data: courses,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages,
+      },
+    };
+
+    return res.json(response);
+  } catch (error) {
+    console.error('Error in fuzzy search:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to perform fuzzy search',
     });
   }
 });
@@ -332,6 +376,120 @@ router.get('/published/list', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch published courses',
+    });
+  }
+});
+
+/**
+ * POST /api/courses/add/admin - Create a new course (Admin only)
+ * Body: Course data (title, description, price, etc.)
+ */
+router.post('/add/admin', authMiddleware, adminOnlyMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const courseData = req.body as Partial<Course>;
+
+    // Validate required fields
+    if (!courseData.title || !courseData.faqs) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title and FAQs are required',
+      });
+    }
+
+    const newCourse = await CourseRepository.createCourse(courseData);
+
+    const response: CourseResponse = {
+      success: true,
+      message: 'Course created successfully',
+      data: newCourse,
+    };
+
+    return res.status(201).json(response);
+  } catch (error) {
+    console.error('Error creating course:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to create course',
+    });
+  }
+});
+
+/**
+ * PUT /api/courses/update/admin/:id - Update a course (Admin only)
+ * Body: Partial course data to update
+ */
+router.put('/update/admin/:id', authMiddleware, adminOnlyMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+
+    if (isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid course ID',
+      });
+    }
+
+    const courseData = req.body as Partial<Course>;
+
+    const updatedCourse = await CourseRepository.updateCourse(id, courseData);
+
+    if (!updatedCourse) {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found',
+      });
+    }
+
+    const response: CourseResponse = {
+      success: true,
+      message: 'Course updated successfully',
+      data: updatedCourse,
+    };
+
+    return res.json(response);
+  } catch (error) {
+    console.error('Error updating course:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update course',
+    });
+  }
+});
+
+/**
+ * DELETE /api/courses/delete/admin/:id - Delete a course (Admin only)
+ */
+router.delete('/delete/admin/:id', authMiddleware, adminOnlyMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+
+    if (isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid course ID',
+      });
+    }
+
+    const deleted = await CourseRepository.deleteCourse(id);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found',
+      });
+    }
+
+    const response: CourseResponse = {
+      success: true,
+      message: 'Course deleted successfully',
+    };
+
+    return res.json(response);
+  } catch (error) {
+    console.error('Error deleting course:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete course',
     });
   }
 });
