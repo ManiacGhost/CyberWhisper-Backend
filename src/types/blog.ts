@@ -8,6 +8,8 @@ export interface Blog {
   content: string;
   thumbnail_url: string | null;
   banner_url: string | null;
+  image_url: string | null;
+  video_url: string | null;
   is_popular: boolean;
   status: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED';
   created_at: Date;
@@ -39,6 +41,8 @@ export interface CreateBlogRequest {
   reading_time?: string;
   thumbnail_url?: string;
   banner_url?: string;
+  image_url?: string;
+  video_url?: string;
   image_alt_text?: string;
   image_caption?: string;
   is_popular?: boolean;
@@ -66,6 +70,8 @@ export interface UpdateBlogRequest {
   reading_time?: string;
   thumbnail_url?: string;
   banner_url?: string;
+  image_url?: string;
+  video_url?: string;
   image_alt_text?: string;
   image_caption?: string;
   is_popular?: boolean;

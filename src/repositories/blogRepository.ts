@@ -17,6 +17,8 @@ export class BlogRepository {
       reading_time,
       thumbnail_url,
       banner_url,
+      image_url,
+      video_url,
       image_alt_text,
       image_caption,
       is_popular = false,
@@ -36,17 +38,17 @@ export class BlogRepository {
     const result = await query(
       `INSERT INTO blogs_cw (
         title, slug, category_id, author_id, content, keywords, short_description, 
-        reading_time, thumbnail_url, banner_url, image_alt_text, image_caption, 
+        reading_time, thumbnail_url, banner_url, image_url, video_url, image_alt_text, image_caption, 
         is_popular, status, publish_date, visibility, seo_title, seo_description, 
         focus_keyword, canonical_url, meta_robots, allow_comments, show_on_homepage, is_sticky
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
        RETURNING *`,
       [
         title, slug, category_id, author_id, content, keywords || null, short_description || null,
-        reading_time || null, thumbnail_url || null, banner_url || null, image_alt_text || null, 
-        image_caption || null, is_popular, status, publish_date || null, visibility, 
-        seo_title || null, seo_description || null, focus_keyword || null, canonical_url || null, 
-        meta_robots, allow_comments, show_on_homepage, is_sticky
+        reading_time || null, thumbnail_url || null, banner_url || null, image_url || null, 
+        video_url || null, image_alt_text || null, image_caption || null, is_popular, status, 
+        publish_date || null, visibility, seo_title || null, seo_description || null, focus_keyword || null, 
+        canonical_url || null, meta_robots, allow_comments, show_on_homepage, is_sticky
       ]
     );
 
