@@ -1,9 +1,31 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { CourseRepository } from '../repositories/courseRepository';
 import { CourseResponse, Course } from '../types/course';
 import { authMiddleware, adminOnlyMiddleware, AuthRequest } from '../middleware/adminAuthMiddleware';
+import { uploadImageToCloudinary } from '../utils/imageUpload';
+
+// Extend Express Request to include file property from multer
+interface MulterRequest extends Request {
+  file?: any;
+}
 
 const router = Router();
+
+// Configure multer for file uploads (memory storage)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (_req: Request, file: any, cb: any) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.'));
+    }
+  },
+});
 
 /**
  * GET /api/courses - Get all courses with pagination
@@ -381,8 +403,51 @@ router.get('/published/list', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/courses/upload-thumbnail - Upload course thumbnail image
+ * Auth: Admin only
+ * Body: form-data with 'thumbnail' file
+ */
+router.post(
+  '/upload-thumbnail',
+  authMiddleware,
+  adminOnlyMiddleware,
+  upload.single('thumbnail'),
+  async (req: MulterRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({
+          success: false,
+          error: 'No file provided',
+        });
+        return;
+      }
+
+      // Convert buffer to base64 data URI for Cloudinary
+      const b64 = Buffer.from(req.file.buffer).toString('base64');
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+      const result = await uploadImageToCloudinary(dataURI, 'courses/thumbnails');
+
+      if (!result.success) {
+        res.status(500).json(result);
+        return;
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error uploading course thumbnail:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to upload thumbnail',
+      });
+    }
+  }
+);
+
+/**
  * POST /api/courses/add/admin - Create a new course (Admin only)
- * Body: Course data (title, description, price, etc.)
+ * Body: Course data (title, faqs, description, price, course_thumbnail, etc.)
+ * Note: Use /upload-thumbnail endpoint first to get the course_thumbnail URL
  */
 router.post('/add/admin', authMiddleware, adminOnlyMiddleware, async (req: AuthRequest, res: Response) => {
   try {

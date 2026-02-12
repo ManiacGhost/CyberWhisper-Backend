@@ -33,6 +33,7 @@ export interface Course {
   expiry_period: number | null;
   upcoming_image_thumbnail: string | null;
   publish_date: string | null;
+  course_thumbnail: string | null;
 }
 
 export interface CourseResponse {
