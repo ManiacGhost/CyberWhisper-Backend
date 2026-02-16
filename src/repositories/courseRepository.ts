@@ -337,6 +337,7 @@ export class CourseRepository {
       upcoming_image_thumbnail,
       publish_date,
       course_thumbnail,
+      brochure_url,
     } = courseData;
 
     const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -349,11 +350,11 @@ export class CourseRepository {
         video_url, date_added, course_type, is_top_course, is_admin,
         status, course_overview_provider, meta_keywords, meta_description,
         is_free_course, multi_instructor, enable_drip_content, creator,
-        expiry_period, upcoming_image_thumbnail, publish_date, course_thumbnail, last_modified
+        expiry_period, upcoming_image_thumbnail, publish_date, course_thumbnail, brochure_url, last_modified
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
         $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
-        $29, $30, $31, $32, $33, $34
+        $29, $30, $31, $32, $33, $34, $35
       ) RETURNING *`,
       [
         title || null,
@@ -389,6 +390,7 @@ export class CourseRepository {
         upcoming_image_thumbnail || null,
         publish_date || null,
         course_thumbnail || null,
+        brochure_url || null,
         currentTimestamp,
       ]
     );
@@ -444,6 +446,7 @@ export class CourseRepository {
       'creator',
       'expiry_period',
       'upcoming_image_thumbnail',
+      'brochure_url',
       'publish_date',
     ];
 

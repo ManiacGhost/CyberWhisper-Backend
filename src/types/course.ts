@@ -34,6 +34,7 @@ export interface Course {
   upcoming_image_thumbnail: string | null;
   publish_date: string | null;
   course_thumbnail: string | null;
+  brochure_url: string | null;
 }
 
 export interface CourseResponse {

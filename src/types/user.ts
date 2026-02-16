@@ -38,7 +38,6 @@ export interface CreateUserRequest {
   github_url?: string;
   role?: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
   is_instructor?: boolean;
-  skills?: string[];
 }
 
 export interface UpdateUserRequest {

@@ -53,7 +53,11 @@ router.post(
         return;
       }
 
-      const result = await uploadToS3(req.file.buffer, req.file.originalname, 'brochures');
+      // Optional: Get custom expiration time from request body (in seconds)
+      // Default is 24 hours (86400 seconds)
+      const expirationSeconds = req.body.expiresIn ? parseInt(req.body.expiresIn) : 86400;
+
+      const result = await uploadToS3(req.file.buffer, req.file.originalname, 'brochures', expirationSeconds);
 
       if (!result.success) {
         res.status(500).json({
@@ -67,9 +71,11 @@ router.post(
         success: true,
         message: 'Brochure uploaded successfully',
         data: {
+          presignedUrl: result.presignedUrl,
           fileUrl: result.fileUrl,
           fileName: result.fileName,
           key: result.key,
+          expiresIn: result.expiresIn,
         },
       });
     } catch (error: any) {

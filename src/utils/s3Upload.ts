@@ -1,13 +1,16 @@
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import s3Client from '../config/s3';
 import crypto from 'crypto';
 
 export interface UploadResult {
   success: boolean;
   fileUrl?: string;
+  presignedUrl?: string;
   fileName?: string;
   error?: string;
   key?: string;
+  expiresIn?: number;
 }
 
 /**
@@ -21,12 +24,13 @@ function generateUniqueFileName(originalFileName: string): string {
 }
 
 /**
- * Upload a file to S3
+ * Upload a file to S3 and generate a presigned URL
  */
 export async function uploadToS3(
   fileBuffer: Buffer,
   originalFileName: string,
-  folder: string = 'brochures'
+  folder: string = 'brochures',
+  expirationSeconds: number = 86400 // 24 hours default
 ): Promise<UploadResult> {
   try {
     if (!process.env.AWS_BUCKET_NAME) {
@@ -39,29 +43,81 @@ export async function uploadToS3(
     const uniqueFileName = generateUniqueFileName(originalFileName);
     const key = `${folder}/${uniqueFileName}`;
 
-    const command = new PutObjectCommand({
+    // Upload the file to S3
+    const uploadCommand = new PutObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: key,
       Body: fileBuffer,
       ContentType: getContentType(originalFileName),
     });
 
-    await s3Client.send(command);
+    await s3Client.send(uploadCommand);
 
-    // Generate the file URL
+    // Generate presigned URL for downloading the file
+    const getObjectCommand = new GetObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+    });
+
+    const presignedUrl = await getSignedUrl(s3Client, getObjectCommand, {
+      expiresIn: expirationSeconds,
+    });
+
+    // Also generate the regular URL for reference
     const fileUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION || 'eu-north-1'}.amazonaws.com/${key}`;
 
     return {
       success: true,
-      fileUrl,
+      presignedUrl,
+      fileUrl, // Regular URL (won't work if bucket is private)
       fileName: uniqueFileName,
       key,
+      expiresIn: expirationSeconds,
     };
   } catch (error: any) {
     console.error('❌ S3 Upload Error:', error.message);
     return {
       success: false,
       error: error.message || 'Failed to upload file to S3',
+    };
+  }
+}
+
+/**
+ * Generate a presigned URL for an existing file in S3
+ */
+export async function generatePresignedUrl(
+  key: string,
+  expirationSeconds: number = 86400 // 24 hours default
+): Promise<UploadResult> {
+  try {
+    if (!process.env.AWS_BUCKET_NAME) {
+      return {
+        success: false,
+        error: 'AWS_BUCKET_NAME not configured',
+      };
+    }
+
+    const getObjectCommand = new GetObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+    });
+
+    const presignedUrl = await getSignedUrl(s3Client, getObjectCommand, {
+      expiresIn: expirationSeconds,
+    });
+
+    return {
+      success: true,
+      presignedUrl,
+      key,
+      expiresIn: expirationSeconds,
+    };
+  } catch (error: any) {
+    console.error('❌ Presigned URL Generation Error:', error.message);
+    return {
+      success: false,
+      error: error.message || 'Failed to generate presigned URL',
     };
   }
 }

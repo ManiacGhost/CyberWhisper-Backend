@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { UserRepository } from '../repositories/userRepository';
-import { SkillRepository } from '../repositories/skillRepository';
 import { uploadImageToCloudinary, deleteImageFromCloudinary, extractPublicIdFromUrl } from '../utils/imageUpload';
 import { UserResponse, CreateUserRequest, UpdateUserRequest } from '../types/user';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -60,12 +59,12 @@ router.post(
 /**
  * POST /api/users
  * Create a new user
- * Body: { first_name, last_name, email, phone, password, title?, address?, biography?, linkedin_url?, github_url?, role?, is_instructor?, profile_image_url?, skills?: [] }
+ * Body: { first_name, last_name, email, phone, password, title?, address?, biography?, linkedin_url?, github_url?, role?, is_instructor?, profile_image_url? }
  */
 router.post(
   '/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { first_name, last_name, email, phone, password, title, address, biography, linkedin_url, github_url, role, is_instructor, profile_image_url, skills } = req.body;
+    const { first_name, last_name, email, phone, password, title, address, biography, linkedin_url, github_url, role, is_instructor, profile_image_url } = req.body;
 
     // Validate required fields
     if (!first_name || !last_name || !email || !phone || !password) {
@@ -113,18 +112,6 @@ router.post(
     };
 
     const user = await UserRepository.createUser(userData);
-
-    // Add skills if provided
-    if (skills && Array.isArray(skills) && skills.length > 0) {
-      for (const skill of skills) {
-        if (skill && skill.trim()) {
-          await SkillRepository.addSkill({
-            user_id: user.id,
-            skill: skill.trim(),
-          });
-        }
-      }
-    }
 
     // Remove password hash from response
     const { password_hash, ...userWithoutPassword } = user;
@@ -366,7 +353,7 @@ router.post(
 
 /**
  * DELETE /api/users/:id
- * Delete user and all associated skills
+ * Delete user
  */
 router.delete(
   '/:id',
