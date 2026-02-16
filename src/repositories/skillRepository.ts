@@ -87,6 +87,6 @@ export class SkillRepository {
    */
   static async getAllUniqueSkills(): Promise<string[]> {
     const result = await query('SELECT DISTINCT skill FROM user_skills ORDER BY skill ASC');
-    return result.rows.map((row) => row.skill);
+    return result.rows.map((row: any) => row.skill);
   }
 }

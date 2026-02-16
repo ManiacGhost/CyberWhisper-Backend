@@ -206,6 +206,6 @@ export class GalleryRepository {
    */
   static async getAllContexts(): Promise<string[]> {
     const result = await query(`SELECT DISTINCT context FROM gallery_cw WHERE context IS NOT NULL ORDER BY context ASC`);
-    return result.rows.map((row) => row.context);
+    return result.rows.map((row: any) => row.context);
   }
 }
