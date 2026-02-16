@@ -1,9 +1,86 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { BrochureDownloadRepository } from '../repositories/brochureDownloadRepository';
 import { BrochureDownloadResponse, BrochureDownload } from '../types/brochureDownload';
 import { authMiddleware, adminOnlyMiddleware, AuthRequest } from '../middleware/adminAuthMiddleware';
+import { uploadToS3 } from '../utils/s3Upload';
+
+// Extend Express Request to include file property from multer
+interface MulterRequest extends Request {
+  file?: any;
+}
 
 const router = Router();
+
+// Configure multer for file uploads (memory storage)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit for brochures
+  fileFilter: (_req: Request, file: any, cb: any) => {
+    const allowedMimes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain',
+    ];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, XLS, XLSX, and TXT are allowed.'));
+    }
+  },
+});
+
+/**
+ * POST /api/brochure-downloads/upload
+ * Upload a brochure file to S3
+ */
+router.post(
+  '/upload',
+  authMiddleware,
+  adminOnlyMiddleware,
+  upload.single('file'),
+  async (req: MulterRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({
+          success: false,
+          error: 'No file provided',
+        });
+        return;
+      }
+
+      const result = await uploadToS3(req.file.buffer, req.file.originalname, 'brochures');
+
+      if (!result.success) {
+        res.status(500).json({
+          success: false,
+          error: result.error || 'Failed to upload brochure',
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: 'Brochure uploaded successfully',
+        data: {
+          fileUrl: result.fileUrl,
+          fileName: result.fileName,
+          key: result.key,
+        },
+      });
+    } catch (error: any) {
+      console.error('Error uploading brochure:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to upload brochure',
+      });
+    }
+  }
+);
 
 /**
  * POST /api/brochure-downloads/add - Record a brochure download

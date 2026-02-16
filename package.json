@@ -36,8 +36,10 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.990.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
+    "aws-sdk": "^2.1693.0",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
     "jsonwebtoken": "^9.0.3",

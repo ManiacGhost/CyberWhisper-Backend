@@ -26,31 +26,109 @@ pool.getConnection()
   });
 
 /**
- * Convert PostgreSQL-style placeholders ($1, $2, etc.) to MySQL-style (?)
+ * Convert PostgreSQL-style SQL to MySQL-compatible SQL
  */
-function convertPostgresToMysql(sql: string): string {
+function convertPostgresToMysql(sql: string): { sql: string; hasReturning: boolean } {
+  // Check if this is a RETURNING query
+  const hasReturning = /RETURNING\s+\*/i.test(sql);
+  
   // Replace $1, $2, etc. with ?
-  // Also handle common PostgreSQL functions like ILIKE -> LIKE (case-insensitive)
   let converted = sql.replace(/\$\d+/g, '?');
   
-  // Convert PostgreSQL ILIKE to MySQL LIKE with binary collation
-  // MySQL LIKE is case-insensitive by default, so we can use LIKE
+  // Remove only the 'public.' schema prefix (more specific than before)
+  // This handles patterns like: FROM public.table, INTO public.table, UPDATE public.table
+  converted = converted.replace(/\bpublic\./gi, '');
+  
+  // Convert PostgreSQL ILIKE to MySQL LIKE (MySQL LIKE is case-insensitive by default)
   converted = converted.replace(/ILIKE/g, 'LIKE');
   
-  // Convert PostgreSQL RETURNING clause (not supported in MySQL)
-  // This is a simple approach - just remove RETURNING and handle in code
-  converted = converted.replace(/\s+RETURNING\s+\*/gi, '');
+  // Convert PostgreSQL double quotes to MySQL backticks for identifiers
+  // This handles column names like "language" and "level"
+  converted = converted.replace(/"([^"]+)"/g, '`$1`');
   
-  return converted;
+  // Convert PostgreSQL LOWER() function - MySQL already defaults to case-insensitive
+  // But we keep LOWER() for explicit collation if needed
+  
+  // Convert PostgreSQL NULLS LAST/FIRST (not supported in MySQL)
+  converted = converted.replace(/\s+NULLS\s+LAST\s*/gi, ' ');
+  converted = converted.replace(/\s+NULLS\s+FIRST\s*/gi, ' ');
+  
+  // Convert PostgreSQL RETURNING clause to MySQL compatibility
+  // Remove RETURNING clause and we'll handle it differently
+  converted = converted.replace(/\s+RETURNING\s+\*\s*/gi, ' ');
+  
+  return { sql: converted, hasReturning };
 }
 
 export const query = async (text: string, params?: any[]): Promise<any> => {
   const connection = await pool.getConnection();
   try {
-    const convertedSql = convertPostgresToMysql(text);
+    const { sql: convertedSql, hasReturning } = convertPostgresToMysql(text);
+    const originalSql = text.trim(); // Keep original case for table name extraction
+    
+    // Debug logging
+    console.log('📝 SQL Query:', convertedSql);
+    console.log('📌 Params:', params);
+    
+    // For INSERT with RETURNING, we need special handling
+    if (hasReturning && originalSql.toUpperCase().startsWith('INSERT')) {
+      await connection.execute(convertedSql, params || []);
+      
+      // Get the last insert ID and fetch the row
+      const getLastIdResult = await connection.execute('SELECT LAST_INSERT_ID() as id');
+      const insertedId = (getLastIdResult[0] as any)[0].id;
+      
+      // Find the table name from the original INSERT statement (preserving case)
+      const tableMatch = originalSql.match(/INSERT INTO\s+(\w+)/i);
+      if (tableMatch) {
+        const tableName = tableMatch[1];
+        const selectResult = await connection.execute(
+          `SELECT * FROM \`${tableName}\` WHERE id = ?`,
+          [insertedId]
+        );
+        return { rows: (selectResult[0] as any[]) };
+      }
+    }
+    
+    // For UPDATE with RETURNING
+    if (hasReturning && originalSql.toUpperCase().startsWith('UPDATE')) {
+      await connection.execute(convertedSql, params || []);
+      
+      // Extract table name
+      const tableMatch = originalSql.match(/UPDATE\s+(\w+)/i);
+      
+      if (tableMatch) {
+        const tableName = tableMatch[1];
+        
+        // For UPDATE...WHERE id = $X queries, the ID is the last parameter
+        // This is the standard pattern used in repositories
+        if (params && params.length > 0) {
+          const idValue = params[params.length - 1];
+          
+          const selectResult = await connection.execute(
+            `SELECT * FROM \`${tableName}\` WHERE id = ?`,
+            [idValue]
+          );
+          return { rows: (selectResult[0] as any[]) };
+        }
+      }
+    }
+    
+    // For regular SELECT queries
     const [results] = await connection.execute(convertedSql, params || []);
-    // Return in a format compatible with existing repositories that expect .rows
-    return { rows: results };
+    
+    if (originalSql.toUpperCase().startsWith('SELECT')) {
+      console.log('✓ SELECT Result rows:', results);
+      return { rows: results as any[] };
+    }
+    
+    // For INSERT/UPDATE/DELETE without RETURNING
+    const affectedRows = (results as any).affectedRows || 0;
+    return {
+      rows: results as any[],
+      rowCount: affectedRows,
+      affectedRows: affectedRows,
+    };
   } finally {
     connection.release();
   }

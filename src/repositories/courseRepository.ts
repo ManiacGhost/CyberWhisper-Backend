@@ -34,13 +34,13 @@ export class CourseRepository {
     }
 
     // Get total count
-    const countQuery = `SELECT COUNT(*) as count FROM public.course ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as count FROM course ${whereClause}`;
     const countResult = await query(countQuery, params.slice(0, paramIndex - 1));
     const total = parseInt(countResult.rows[0].count);
 
     // Get courses with pagination
     const coursesQuery = `
-      SELECT * FROM public.course 
+      SELECT * FROM course 
       ${whereClause}
       ORDER BY date_added DESC NULLS LAST
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -55,7 +55,7 @@ export class CourseRepository {
    * Get course by ID
    */
   static async getCourseById(id: number): Promise<Course | null> {
-    const result = await query('SELECT * FROM public.course WHERE id = $1', [id]);
+    const result = await query('SELECT * FROM course WHERE id = $1', [id]);
     return result.rows.length > 0 ? (result.rows[0] as Course) : null;
   }
 
@@ -68,13 +68,13 @@ export class CourseRepository {
     offset: number = 0
   ): Promise<{ courses: Course[]; total: number }> {
     const countResult = await query(
-      'SELECT COUNT(*) as count FROM public.course WHERE category_id = $1',
+      'SELECT COUNT(*) as count FROM course WHERE category_id = $1',
       [categoryId]
     );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM public.course 
+      `SELECT * FROM course 
        WHERE category_id = $1 
        ORDER BY date_added DESC NULLS LAST 
        LIMIT $2 OFFSET $3`,
@@ -93,13 +93,13 @@ export class CourseRepository {
     offset: number = 0
   ): Promise<{ courses: Course[]; total: number }> {
     const countResult = await query(
-      'SELECT COUNT(*) as count FROM public.course WHERE creator = $1',
+      'SELECT COUNT(*) as count FROM course WHERE creator = $1',
       [creatorId]
     );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM public.course 
+      `SELECT * FROM course 
        WHERE creator = $1 
        ORDER BY date_added DESC NULLS LAST 
        LIMIT $2 OFFSET $3`,
@@ -114,7 +114,7 @@ export class CourseRepository {
    */
   static async getTopCourses(limit: number = 10): Promise<Course[]> {
     const result = await query(
-      `SELECT * FROM public.course 
+      `SELECT * FROM course 
        WHERE is_top_course = 1 
        ORDER BY date_added DESC NULLS LAST 
        LIMIT $1`,
@@ -131,12 +131,12 @@ export class CourseRepository {
     offset: number = 0
   ): Promise<{ courses: Course[]; total: number }> {
     const countResult = await query(
-      'SELECT COUNT(*) as count FROM public.course WHERE is_free_course = 1'
+      'SELECT COUNT(*) as count FROM course WHERE is_free_course = 1'
     );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM public.course 
+      `SELECT * FROM course 
        WHERE is_free_course = 1 
        ORDER BY date_added DESC NULLS LAST 
        LIMIT $1 OFFSET $2`,
@@ -157,7 +157,7 @@ export class CourseRepository {
     const searchPattern = `%${searchTerm}%`;
 
     const countResult = await query(
-      `SELECT COUNT(*) as count FROM public.course 
+      `SELECT COUNT(*) as count FROM course 
        WHERE LOWER(title) LIKE LOWER($1) 
        OR LOWER(short_description) LIKE LOWER($1)`,
       [searchPattern]
@@ -165,7 +165,7 @@ export class CourseRepository {
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM public.course 
+      `SELECT * FROM course 
        WHERE LOWER(title) LIKE LOWER($1) 
        OR LOWER(short_description) LIKE LOWER($1)
        ORDER BY date_added DESC NULLS LAST 
@@ -228,7 +228,7 @@ export class CourseRepository {
 
     // Count total results
     const countResult = await query(
-      `SELECT COUNT(DISTINCT id) as count FROM public.course 
+      `SELECT COUNT(DISTINCT id) as count FROM course 
        WHERE ${whereClause}`,
       params
     );
@@ -236,7 +236,7 @@ export class CourseRepository {
 
     // Get courses with pagination
     const result = await query(
-      `SELECT * FROM public.course 
+      `SELECT * FROM course 
        WHERE ${whereClause}
        ORDER BY 
          CASE 
@@ -261,13 +261,13 @@ export class CourseRepository {
     offset: number = 0
   ): Promise<{ courses: Course[]; total: number }> {
     const countResult = await query(
-      'SELECT COUNT(*) as count FROM public.course WHERE "level" = $1',
+      'SELECT COUNT(*) as count FROM course WHERE "level" = $1',
       [level]
     );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM public.course 
+      `SELECT * FROM course 
        WHERE "level" = $1 
        ORDER BY date_added DESC NULLS LAST 
        LIMIT $2 OFFSET $3`,
@@ -285,12 +285,12 @@ export class CourseRepository {
     offset: number = 0
   ): Promise<{ courses: Course[]; total: number }> {
     const countResult = await query(
-      "SELECT COUNT(*) as count FROM public.course WHERE status = 'published'"
+      "SELECT COUNT(*) as count FROM course WHERE status = 'published'"
     );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM public.course 
+      `SELECT * FROM course 
        WHERE status = 'published'
        ORDER BY date_added DESC NULLS LAST 
        LIMIT $1 OFFSET $2`,
@@ -342,7 +342,7 @@ export class CourseRepository {
     const currentTimestamp = Math.floor(Date.now() / 1000);
 
     const result = await query(
-      `INSERT INTO public.course (
+      `INSERT INTO course (
         title, short_description, description, outcomes, faqs, language,
         category_id, sub_category_id, section, requirements, price,
         discount_flag, discounted_price, level, user_id, thumbnail,
@@ -449,7 +449,7 @@ export class CourseRepository {
 
     updateFields.forEach((field) => {
       if (field in courseData && courseData[field] !== undefined) {
-        const quotedField = field === 'language' || field === 'level' ? `"${field}"` : field;
+        const quotedField = field === 'language' || field === 'level' ? `\`${field}\`` : field;
         updates.push(`${quotedField} = $${paramIndex++}`);
         params.push(courseData[field]);
       }
@@ -465,7 +465,7 @@ export class CourseRepository {
     params.push(id);
 
     const updateQuery = `
-      UPDATE public.course 
+      UPDATE course 
       SET ${updates.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING *
@@ -479,7 +479,7 @@ export class CourseRepository {
    * Delete a course (Admin only)
    */
   static async deleteCourse(id: number): Promise<boolean> {
-    const result = await query('DELETE FROM public.course WHERE id = $1', [id]);
+    const result = await query('DELETE FROM course WHERE id = $1', [id]);
     return result.rowCount ? result.rowCount > 0 : false;
   }
 }
