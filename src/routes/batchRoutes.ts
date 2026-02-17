@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { BatchRepository } from '../repositories/batchRepository';
+import { BatchEnrollmentRepository } from '../repositories/batchEnrollmentRepository';
 import { CreateBatchRequest, UpdateBatchRequest } from '../types/batch';
 import { asyncHandler } from '../middleware/errorHandler';
 
@@ -231,6 +232,76 @@ router.get(
         limit,
         pages,
       },
+    });
+  })
+);
+
+/**
+ * POST /api/batches/enroll
+ * Public batch enroll form endpoint
+ * Body: batch_id, name, email, phone_number
+ */
+router.post(
+  '/enroll',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { batch_id, name, email, phone_number } = req.body as {
+      batch_id?: number | string;
+      name?: string;
+      email?: string;
+      phone_number?: string;
+    };
+
+    // Validate required fields
+    if (!batch_id || !name || !email || !phone_number) {
+      res.status(400).json({
+        success: false,
+        error: 'Missing required fields: batch_id, name, email, phone_number',
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid email format',
+      });
+      return;
+    }
+
+    // Parse and validate batch_id
+    const parsedBatchId = parseInt(String(batch_id), 10);
+    if (isNaN(parsedBatchId)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid batch_id',
+      });
+      return;
+    }
+
+    // Check if batch exists
+    const batch = await BatchRepository.getBatchById(parsedBatchId);
+    if (!batch) {
+      res.status(404).json({
+        success: false,
+        error: 'Batch not found',
+      });
+      return;
+    }
+
+    // Create enrollment record
+    const enrollment = await BatchEnrollmentRepository.createEnrollment({
+      batch_id: parsedBatchId,
+      name: name.trim(),
+      email: email.trim(),
+      phone_number: phone_number.trim(),
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Batch enrollment submitted successfully',
+      data: enrollment,
     });
   })
 );
