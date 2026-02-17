@@ -307,6 +307,125 @@ router.post(
 );
 
 /**
+ * GET /api/batches/enrollment/:enrollmentId
+ * Get single batch enrollment by ID
+ */
+router.get(
+  '/enrollment/:enrollmentId',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const enrollmentId = parseInt(req.params.enrollmentId as string);
+
+    if (isNaN(enrollmentId)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid enrollment ID',
+      });
+      return;
+    }
+
+    const enrollment = await BatchEnrollmentRepository.getEnrollmentById(enrollmentId);
+
+    if (!enrollment) {
+      res.status(404).json({
+        success: false,
+        error: 'Batch enrollment not found',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: enrollment,
+    });
+  })
+);
+
+/**
+ * GET /api/batches/enrollments
+ * Get all batch enrollments with pagination
+ */
+router.get(
+  '/enrollments',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+
+    const filters = {
+      batch_id: req.query.batch_id ? parseInt(req.query.batch_id as string) : undefined,
+      email: req.query.email as string | undefined,
+    };
+
+    const { enrollments, total } = await BatchEnrollmentRepository.getAllEnrollments(
+      limit,
+      offset,
+      filters
+    );
+    const pages = Math.ceil(total / limit);
+
+    res.json({
+      success: true,
+      data: enrollments,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages,
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/batches/:id/enrollments
+ * Get enrollments for a specific batch
+ */
+router.get(
+  '/:id/enrollments',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const batchId = parseInt(req.params.id as string);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+
+    if (isNaN(batchId)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid batch ID',
+      });
+      return;
+    }
+
+    const batch = await BatchRepository.getBatchById(batchId);
+    if (!batch) {
+      res.status(404).json({
+        success: false,
+        error: 'Batch not found',
+      });
+      return;
+    }
+
+    const { enrollments, total } = await BatchEnrollmentRepository.getEnrollmentsByBatchId(
+      batchId,
+      limit,
+      offset
+    );
+    const pages = Math.ceil(total / limit);
+
+    res.json({
+      success: true,
+      data: enrollments,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages,
+      },
+    });
+  })
+);
+
+/**
  * GET /api/batches/:id
  * Get batch by ID
  */
