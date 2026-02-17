@@ -1,6 +1,57 @@
 import { query } from '../config/database';
 import { Gallery, CreateGalleryRequest, UpdateGalleryRequest, GalleryFilters } from '../types/gallery';
 
+function serializeTagsForDb(tags?: string[] | null): string | null {
+  if (!tags) {
+    return null;
+  }
+
+  if (Array.isArray(tags)) {
+    const cleanedTags = tags.map((tag) => tag.trim()).filter(Boolean);
+    return cleanedTags.length > 0 ? JSON.stringify(cleanedTags) : null;
+  }
+
+  return null;
+}
+
+function parseTagsFromDb(tags: unknown): string[] | null {
+  if (tags == null) {
+    return null;
+  }
+
+  if (Array.isArray(tags)) {
+    return tags.map((tag) => String(tag));
+  }
+
+  if (typeof tags === 'string') {
+    const trimmedTags = tags.trim();
+    if (!trimmedTags) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(trimmedTags);
+      if (Array.isArray(parsed)) {
+        return parsed.map((tag) => String(tag));
+      }
+    } catch {
+      return trimmedTags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return null;
+}
+
+function mapGalleryRow(row: any): Gallery {
+  return {
+    ...row,
+    tags: parseTagsFromDb(row.tags),
+  } as Gallery;
+}
+
 export class GalleryRepository {
   /**
    * Create a new gallery image
@@ -18,15 +69,16 @@ export class GalleryRepository {
       is_active = true,
       sort_order = 0,
     } = data;
+    const tagsForDb = serializeTagsForDb(tags);
 
     const result = await query(
       `INSERT INTO gallery_cw (image_url, public_id, title, context, alt_text, tags, is_active, sort_order)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [imageUrl, publicId, title, context, alt_text, tags, is_active, sort_order]
+      [imageUrl, publicId, title, context, alt_text, tagsForDb, is_active, sort_order]
     );
 
-    return result.rows[0] as Gallery;
+    return mapGalleryRow(result.rows[0]);
   }
 
   /**
@@ -76,7 +128,7 @@ export class GalleryRepository {
 
     const result = await query(selectQuery, [...params, limit, offset]);
     return {
-      images: result.rows as Gallery[],
+      images: (result.rows as any[]).map(mapGalleryRow),
       total,
     };
   }
@@ -104,7 +156,7 @@ export class GalleryRepository {
     );
 
     return {
-      images: result.rows as Gallery[],
+      images: (result.rows as any[]).map(mapGalleryRow),
       total,
     };
   }
@@ -114,7 +166,7 @@ export class GalleryRepository {
    */
   static async getGalleryImageById(id: number): Promise<Gallery | null> {
     const result = await query(`SELECT * FROM gallery_cw WHERE id = $1`, [id]);
-    return (result.rows[0] as Gallery) || null;
+    return result.rows[0] ? mapGalleryRow(result.rows[0]) : null;
   }
 
   /**
@@ -142,7 +194,7 @@ export class GalleryRepository {
     }
     if (data.tags !== undefined) {
       fields.push(`tags = $${paramIndex++}`);
-      params.push(data.tags);
+      params.push(serializeTagsForDb(data.tags));
     }
     if (data.is_active !== undefined) {
       fields.push(`is_active = $${paramIndex++}`);
@@ -164,7 +216,7 @@ export class GalleryRepository {
       params
     );
 
-    return (result.rows[0] as Gallery) || null;
+    return result.rows[0] ? mapGalleryRow(result.rows[0]) : null;
   }
 
   /**
@@ -180,7 +232,7 @@ export class GalleryRepository {
    */
   static async getGalleryImageByPublicId(publicId: string): Promise<Gallery | null> {
     const result = await query(`SELECT * FROM gallery_cw WHERE public_id = $1`, [publicId]);
-    return (result.rows[0] as Gallery) || null;
+    return result.rows[0] ? mapGalleryRow(result.rows[0]) : null;
   }
 
   /**

@@ -23,6 +23,21 @@ import { errorHandler } from './middleware/errorHandler';
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
+const VERCEL_FRONTEND_DOMAIN_PATTERN =
+  /^https:\/\/cyberwhisperupdatedfrontend(?:-[a-z0-9-]+)?\.vercel\.app$/i;
+
+function isAllowedOrigin(origin: string | undefined, allowedOrigins: string[]): boolean {
+  if (!origin) {
+    return true;
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  return VERCEL_FRONTEND_DOMAIN_PATTERN.test(origin);
+}
+
 // CORS configuration
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -34,17 +49,21 @@ const corsOptions = {
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3002',
       'http://127.0.0.1:3031',
+      'https://cyberwhisperupdatedfrontend.vercel.app',
+      'https://cyberwhisperupdatedfrontend-e4z7trsyr-tanuj-s-projects.vercel.app',
       process.env.CLIENT_URL,
     ].filter(Boolean);
 
     // For development, allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin, allowedOrigins as string[])) {
       callback(null, true);
     } else if (process.env.NODE_ENV === 'development') {
       // In development, allow all origins
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      const corsError = new Error('Not allowed by CORS') as Error & { status?: number };
+      corsError.status = 403;
+      callback(corsError);
     }
   },
   credentials: true,

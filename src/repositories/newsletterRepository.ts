@@ -8,10 +8,21 @@ export class NewsletterRepository {
   static async subscribe(data: SubscribeRequest): Promise<NewsletterSubscriber> {
     const { email } = data;
 
+    // Check if email already exists
+    const existing = await query(
+      'SELECT id, email, created_at FROM newsletter_subscribers WHERE email = $1',
+      [email]
+    );
+
+    if (existing.rows.length > 0) {
+      // Email already subscribed, return existing record
+      return existing.rows[0] as NewsletterSubscriber;
+    }
+
+    // Insert new email
     const result = await query(
       `INSERT INTO newsletter_subscribers (email, created_at)
        VALUES ($1, CURRENT_TIMESTAMP)
-       ON CONFLICT (email) DO UPDATE SET created_at = CURRENT_TIMESTAMP
        RETURNING id, email, created_at`,
       [email]
     );
