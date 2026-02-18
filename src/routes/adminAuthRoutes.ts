@@ -39,8 +39,8 @@ router.post(
         return;
       }
 
-      // Check if user has admin access (admin, instructor, or student)
-      if (!['ADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
+      // Check if user has admin access (admin, superadmin, instructor, or student)
+      if (!['ADMIN', 'SUPERADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
         res.status(403).json({
           success: false,
           error: 'User does not have access to this endpoint',
@@ -138,8 +138,8 @@ router.post(
         return;
       }
 
-      // Check if user has admin access (admin, instructor, or student)
-      if (!['ADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
+      // Check if user has admin access (admin, superadmin, instructor, or student)
+      if (!['ADMIN', 'SUPERADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
         res.status(403).json({
           success: false,
           error: 'User does not have access to this endpoint',
@@ -234,8 +234,8 @@ router.post(
         return;
       }
 
-      // Check if user has admin access (admin, instructor, or student)
-      if (!['ADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
+      // Check if user has admin access (admin, superadmin, instructor, or student)
+      if (!['ADMIN', 'SUPERADMIN', 'INSTRUCTOR', 'STUDENT'].includes(user.role)) {
         res.status(403).json({
           success: false,
           error: 'User does not have access to this endpoint',

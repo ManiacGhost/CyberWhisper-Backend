@@ -42,8 +42,8 @@ router.post(
         return;
       }
 
-      // Admins should use /api/admin/login endpoint with OTP
-      if (user.role === 'ADMIN') {
+      // Admins and SuperAdmins should use /api/admin/login endpoint with OTP
+      if (['ADMIN', 'SUPERADMIN'].includes(user.role)) {
         res.status(403).json({
           success: false,
           error: 'Administrators must use the admin login endpoint',

@@ -4,7 +4,7 @@ import crypto from 'crypto';
 export interface TokenPayload {
   userId: number;
   email: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+  role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN' | 'SUPERADMIN';
   firstName: string;
   lastName: string;
   iat?: number;

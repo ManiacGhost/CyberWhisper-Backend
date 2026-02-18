@@ -11,7 +11,7 @@ export interface User {
   biography: string | null;
   linkedin_url: string | null;
   github_url: string | null;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+  role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN' | 'SUPERADMIN';
   is_instructor: boolean;
   status: 'ACTIVE' | 'INACTIVE';
   created_at: Date;
@@ -36,7 +36,7 @@ export interface CreateUserRequest {
   biography?: string;
   linkedin_url?: string;
   github_url?: string;
-  role?: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+  role?: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN' | 'SUPERADMIN';
   is_instructor?: boolean;
 }
 
@@ -51,7 +51,7 @@ export interface UpdateUserRequest {
   biography?: string;
   linkedin_url?: string;
   github_url?: string;
-  role?: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+  role?: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN' | 'SUPERADMIN';
   is_instructor?: boolean;
   status?: 'ACTIVE' | 'INACTIVE';
 }
