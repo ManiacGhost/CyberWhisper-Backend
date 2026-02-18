@@ -40,6 +40,8 @@ export interface AdminOTPVerifyResponse {
   message?: string;
   data?: {
     token?: string;
+    expiresAt?: string;
+    expiresIn?: number;
     user?: {
       id: number;
       first_name: string;

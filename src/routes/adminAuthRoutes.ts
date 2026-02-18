@@ -4,7 +4,7 @@ import { OTPRepository } from '../repositories/otpRepository';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AdminLoginRequest, AdminLoginResponse, AdminOTPVerifyResponse, VerifyOTPRequest } from '../types/otp';
 import { sendOTPToAdmin, verifyOTPCode, handleFailedOTPAttempt } from '../utils/otpService';
-import { generateJWTToken, verifyPassword } from '../utils/jwtService';
+import { generateJWTToken, verifyPassword, getJWTExpiryMs } from '../utils/jwtService';
 
 const router = Router();
 
@@ -170,11 +170,17 @@ router.post(
         lastName: user.last_name,
       });
 
+      // Get token expiration time (in milliseconds from now)
+      const expiresIn = getJWTExpiryMs();
+      const expiresAt = new Date(Date.now() + expiresIn);
+
       const response: AdminOTPVerifyResponse = {
         success: true,
         message: 'OTP verified successfully. You are now logged in.',
         data: {
           token,
+          expiresAt: expiresAt.toISOString(),
+          expiresIn,
           user: {
             id: user.id,
             first_name: user.first_name,
@@ -185,6 +191,7 @@ router.post(
         },
       };
 
+      console.log(`\u2713 User ${email} logged in. Token expires at: ${expiresAt}`);
       res.json(response);
     } catch (error) {
       console.error('Error verifying OTP:', error);
