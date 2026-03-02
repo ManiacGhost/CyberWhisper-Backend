@@ -78,6 +78,10 @@ export const query = async (text: string, params?: any[]): Promise<any> => {
       const getLastIdResult = await connection.execute('SELECT LAST_INSERT_ID() as id');
       const insertedId = (getLastIdResult[0] as any)[0].id;
       
+      if (!insertedId) {
+        throw new Error('Failed to retrieve inserted ID from database');
+      }
+      
       // Find the table name from the original INSERT statement (preserving case)
       const tableMatch = originalSql.match(/INSERT INTO\s+(\w+)/i);
       if (tableMatch) {
@@ -86,7 +90,13 @@ export const query = async (text: string, params?: any[]): Promise<any> => {
           `SELECT * FROM \`${tableName}\` WHERE id = ?`,
           [insertedId]
         );
-        return { rows: (selectResult[0] as any[]) };
+        const rows = selectResult[0] as any[];
+        if (!rows || rows.length === 0) {
+          throw new Error(`Failed to retrieve inserted row from table \`${tableName}\` with id ${insertedId}`);
+        }
+        return { rows };
+      } else {
+        throw new Error('Could not extract table name from INSERT statement');
       }
     }
     
@@ -109,7 +119,8 @@ export const query = async (text: string, params?: any[]): Promise<any> => {
             `SELECT * FROM \`${tableName}\` WHERE id = ?`,
             [idValue]
           );
-          return { rows: (selectResult[0] as any[]) };
+          const rows = selectResult[0] as any[];
+          return { rows };
         }
       }
     }
@@ -129,6 +140,15 @@ export const query = async (text: string, params?: any[]): Promise<any> => {
       rowCount: affectedRows,
       affectedRows: affectedRows,
     };
+  } catch (error: any) {
+    console.error('❌ Database Query Error:', {
+      message: error.message,
+      sql: text,
+      params: params,
+      code: error.code,
+      errno: error.errno,
+    });
+    throw error;
   } finally {
     connection.release();
   }

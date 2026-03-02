@@ -154,6 +154,59 @@ export async function deleteFromS3(key: string): Promise<UploadResult> {
 }
 
 /**
+ * Convert S3 URL to presigned URL
+ * Extracts the key from a regular S3 URL and generates a presigned URL
+ */
+export async function convertS3UrlToPresigned(
+  s3Url: string | null,
+  expirationSeconds: number = 86400 // 24 hours default
+): Promise<string | null> {
+  if (!s3Url) {
+    return null;
+  }
+
+  try {
+    // Extract the key from the S3 URL
+    // Format: https://bucket-name.s3.region.amazonaws.com/key/to/file
+    const urlParts = s3Url.split('.s3.');
+    if (urlParts.length < 2) {
+      // URL is not in expected S3 format, return as-is
+      return s3Url;
+    }
+
+    // Extract key from the second part
+    const secondPart = urlParts[1];
+    const keyStartIndex = secondPart.indexOf('/');
+    if (keyStartIndex === -1) {
+      return s3Url;
+    }
+
+    const key = secondPart.substring(keyStartIndex + 1);
+
+    if (!process.env.AWS_BUCKET_NAME) {
+      console.warn('AWS_BUCKET_NAME not configured');
+      return s3Url;
+    }
+
+    // Generate presigned URL for the extracted key
+    const getObjectCommand = new GetObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+    });
+
+    const presignedUrl = await getSignedUrl(s3Client, getObjectCommand, {
+      expiresIn: expirationSeconds,
+    });
+
+    return presignedUrl;
+  } catch (error: any) {
+    console.error('❌ Error converting S3 URL to presigned:', error.message);
+    // Return original URL if conversion fails
+    return s3Url;
+  }
+}
+
+/**
  * Get content type based on file extension
  */
 function getContentType(fileName: string): string {

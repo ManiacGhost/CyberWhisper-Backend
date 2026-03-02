@@ -4,6 +4,8 @@ export interface Blog {
   slug: string;
   category_id: number;
   author_id: number;
+  author_first_name: string | null;
+  author_last_name: string | null;
   keywords: string | null;
   content: string;
   thumbnail_url: string | null;
@@ -28,6 +30,10 @@ export interface Blog {
   allow_comments: boolean;
   show_on_homepage: boolean;
   is_sticky: boolean;
+  linkedin_handle_url: string | null;
+  facebook_handle_url: string | null;
+  x_handle_url: string | null;
+  instagram_handle_url: string | null;
 }
 
 export interface CreateBlogRequest {
@@ -57,6 +63,10 @@ export interface CreateBlogRequest {
   allow_comments?: boolean;
   show_on_homepage?: boolean;
   is_sticky?: boolean;
+  linkedin_handle_url?: string;
+  facebook_handle_url?: string;
+  x_handle_url?: string;
+  instagram_handle_url?: string;
 }
 
 export interface UpdateBlogRequest {
@@ -86,6 +96,10 @@ export interface UpdateBlogRequest {
   allow_comments?: boolean;
   show_on_homepage?: boolean;
   is_sticky?: boolean;
+  linkedin_handle_url?: string;
+  facebook_handle_url?: string;
+  x_handle_url?: string;
+  instagram_handle_url?: string;
 }
 
 export interface BlogResponse {

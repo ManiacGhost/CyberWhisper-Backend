@@ -4,7 +4,7 @@ export interface Course {
   short_description: string | null;
   description: string | null;
   outcomes: string | null;
-  faqs: string;
+  faqs: string | null;
   language: string | null;
   category_id: number | null;
   sub_category_id: number | null;

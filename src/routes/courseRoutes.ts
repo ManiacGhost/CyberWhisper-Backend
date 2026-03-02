@@ -453,14 +453,6 @@ router.post('/add/admin', authMiddleware, adminOnlyMiddleware, async (req: AuthR
   try {
     const courseData = req.body as Partial<Course>;
 
-    // Validate required fields
-    if (!courseData.title || !courseData.faqs) {
-      return res.status(400).json({
-        success: false,
-        error: 'Title and FAQs are required',
-      });
-    }
-
     const newCourse = await CourseRepository.createCourse(courseData);
 
     const response: CourseResponse = {

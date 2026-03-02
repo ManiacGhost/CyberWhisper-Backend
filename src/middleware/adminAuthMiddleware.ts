@@ -56,7 +56,7 @@ export const adminOnlyMiddleware = (req: AuthRequest, res: Response, next: NextF
     return;
   }
 
-  if (req.user.role !== 'ADMIN') {
+  if (!['ADMIN', 'SUPERADMIN'].includes(req.user.role)) {
     res.status(403).json({
       success: false,
       error: 'Only administrators can access this endpoint',
@@ -80,7 +80,7 @@ export const instructorOnlyMiddleware = (req: AuthRequest, res: Response, next: 
     return;
   }
 
-  if (req.user.role !== 'INSTRUCTOR' && req.user.role !== 'ADMIN') {
+  if (!['INSTRUCTOR', 'ADMIN', 'SUPERADMIN'].includes(req.user.role)) {
     res.status(403).json({
       success: false,
       error: 'Only instructors and administrators can access this endpoint',

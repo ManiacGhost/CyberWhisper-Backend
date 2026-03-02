@@ -95,6 +95,29 @@ router.post(
       return;
     }
 
+    // Check admin limit (maximum 5 admins, only 1 superadmin)
+    if (role === 'SUPERADMIN') {
+      const superadminCount = await UserRepository.countUsersByRole('SUPERADMIN');
+      if (superadminCount >= 1) {
+        res.status(400).json({
+          success: false,
+          error: 'Only 1 superadmin is allowed in the system',
+        });
+        return;
+      }
+    }
+
+    if (role === 'ADMIN') {
+      const adminCount = await UserRepository.countUsersByRole('ADMIN');
+      if (adminCount >= 5) {
+        res.status(400).json({
+          success: false,
+          error: 'Maximum limit of 5 admins reached. Cannot create more admins',
+        });
+        return;
+      }
+    }
+
     const userData: CreateUserRequest & { profile_image_url?: string } = {
       first_name,
       last_name,
@@ -318,6 +341,35 @@ router.post(
           error: 'Phone number already registered',
         });
         return;
+      }
+    }
+
+    // Check admin limit on role update
+    if (req.body.role && req.body.role !== user.role) {
+      // Check if promoting to SUPERADMIN
+      if (req.body.role === 'SUPERADMIN') {
+        const superadminCount = await UserRepository.countUsersByRole('SUPERADMIN');
+        // Only allow if current user is not already a SUPERADMIN and no other SUPERADMIN exists
+        if (user.role !== 'SUPERADMIN' && superadminCount >= 1) {
+          res.status(400).json({
+            success: false,
+            error: 'Only 1 superadmin is allowed in the system. Cannot promote to superadmin',
+          });
+          return;
+        }
+      }
+
+      // Check if promoting to ADMIN
+      if (req.body.role === 'ADMIN') {
+        const adminCount = await UserRepository.countUsersByRole('ADMIN');
+        // Only allow if current user is not already an ADMIN and limit not reached
+        if (user.role !== 'ADMIN' && adminCount >= 5) {
+          res.status(400).json({
+            success: false,
+            error: 'Maximum limit of 5 admins reached. Cannot promote to admin',
+          });
+          return;
+        }
       }
     }
 

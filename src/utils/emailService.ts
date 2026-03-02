@@ -32,19 +32,25 @@ interface EmailOptions {
  */
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
   try {
+    const fromEmail = process.env.BREVO_FROM_EMAIL || process.env.BREVO_EMAIL || 'noreply@cyberwhisper.com';
+    
     const mailOptions = {
-      from: process.env.BREVO_FROM_EMAIL || process.env.BREVO_EMAIL || 'noreply@cyberwhisper.com',
+      from: fromEmail,
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
     };
 
+    console.log(`📧 Attempting to send email from: ${fromEmail} to: ${options.to}`);
     const info = await transporter.sendMail(mailOptions);
-    console.log('✓ Email sent successfully:', info.messageId);
+    console.log(`✓ Email sent successfully to ${options.to} - Message ID: ${info.messageId}`);
     return true;
-  } catch (error) {
-    console.error('❌ Error sending email:', error);
+  } catch (error: any) {
+    console.error('❌ Error sending email to', options.to);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error response:', error.response);
     return false;
   }
 };

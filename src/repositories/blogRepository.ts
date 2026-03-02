@@ -33,6 +33,10 @@ export class BlogRepository {
       allow_comments = true,
       show_on_homepage = true,
       is_sticky = false,
+      linkedin_handle_url,
+      facebook_handle_url,
+      x_handle_url,
+      instagram_handle_url,
     } = data;
 
     const result = await query(
@@ -40,19 +44,30 @@ export class BlogRepository {
         title, slug, category_id, author_id, content, keywords, short_description, 
         reading_time, thumbnail_url, banner_url, image_url, video_url, image_alt_text, image_caption, 
         is_popular, status, publish_date, visibility, seo_title, seo_description, 
-        focus_keyword, canonical_url, meta_robots, allow_comments, show_on_homepage, is_sticky
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+        focus_keyword, canonical_url, meta_robots, allow_comments, show_on_homepage, is_sticky,
+        linkedin_handle_url, facebook_handle_url, x_handle_url, instagram_handle_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
        RETURNING *`,
       [
         title, slug, category_id, author_id, content, keywords || null, short_description || null,
         reading_time || null, thumbnail_url || null, banner_url || null, image_url || null, 
         video_url || null, image_alt_text || null, image_caption || null, is_popular, status, 
         publish_date || null, visibility, seo_title || null, seo_description || null, focus_keyword || null, 
-        canonical_url || null, meta_robots, allow_comments, show_on_homepage, is_sticky
+        canonical_url || null, meta_robots, allow_comments, show_on_homepage, is_sticky,
+        linkedin_handle_url || null, facebook_handle_url || null, x_handle_url || null, instagram_handle_url || null
       ]
     );
 
-    return result.rows[0] as Blog;
+    const blog = result.rows[0];
+
+    // Fetch author info
+    const authorResult = await query('SELECT first_name, last_name FROM users_cw WHERE id = $1', [author_id]);
+    if (authorResult.rows.length > 0) {
+      blog.author_first_name = authorResult.rows[0].first_name;
+      blog.author_last_name = authorResult.rows[0].last_name;
+    }
+
+    return blog as Blog;
   }
 
   /**
@@ -97,9 +112,11 @@ export class BlogRepository {
 
     // Get blogs with pagination
     const blogsQuery = `
-      SELECT * FROM blogs_cw 
+      SELECT b.*, u.first_name as author_first_name, u.last_name as author_last_name 
+      FROM blogs_cw b
+      LEFT JOIN users_cw u ON b.author_id = u.id
       ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY b.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     const allParams = [...params, limit, offset];
@@ -112,7 +129,13 @@ export class BlogRepository {
    * Get blog by ID
    */
   static async getBlogById(id: number): Promise<Blog | null> {
-    const result = await query('SELECT * FROM blogs_cw WHERE id = $1', [id]);
+    const result = await query(
+      `SELECT b.*, u.first_name as author_first_name, u.last_name as author_last_name 
+       FROM blogs_cw b 
+       LEFT JOIN users_cw u ON b.author_id = u.id 
+       WHERE b.id = $1`,
+      [id]
+    );
     return result.rows.length > 0 ? (result.rows[0] as Blog) : null;
   }
 
@@ -120,7 +143,13 @@ export class BlogRepository {
    * Get blog by slug
    */
   static async getBlogBySlug(slug: string): Promise<Blog | null> {
-    const result = await query('SELECT * FROM blogs_cw WHERE slug = $1', [slug]);
+    const result = await query(
+      `SELECT b.*, u.first_name as author_first_name, u.last_name as author_last_name 
+       FROM blogs_cw b 
+       LEFT JOIN users_cw u ON b.author_id = u.id 
+       WHERE b.slug = $1`,
+      [slug]
+    );
     return result.rows.length > 0 ? (result.rows[0] as Blog) : null;
   }
 
@@ -154,7 +183,18 @@ export class BlogRepository {
     `;
 
     const result = await query(updateQuery, values);
-    return result.rows.length > 0 ? (result.rows[0] as Blog) : null;
+    if (result.rows.length === 0) return null;
+
+    const blog = result.rows[0];
+
+    // Fetch author info
+    const authorResult = await query('SELECT first_name, last_name FROM users_cw WHERE id = $1', [blog.author_id]);
+    if (authorResult.rows.length > 0) {
+      blog.author_first_name = authorResult.rows[0].first_name;
+      blog.author_last_name = authorResult.rows[0].last_name;
+    }
+
+    return blog as Blog;
   }
 
   /**
@@ -170,7 +210,11 @@ export class BlogRepository {
    */
   static async getPopularBlogs(limit: number = 5): Promise<Blog[]> {
     const result = await query(
-      `SELECT * FROM blogs_cw WHERE is_popular = true AND status = 'PUBLISHED' AND visibility = 'PUBLIC' ORDER BY created_at DESC LIMIT $1`,
+      `SELECT b.*, u.first_name as author_first_name, u.last_name as author_last_name 
+       FROM blogs_cw b
+       LEFT JOIN users_cw u ON b.author_id = u.id
+       WHERE b.is_popular = true AND b.status = 'PUBLISHED' AND b.visibility = 'PUBLIC' 
+       ORDER BY b.created_at DESC LIMIT $1`,
       [limit]
     );
     return result.rows as Blog[];
@@ -187,7 +231,11 @@ export class BlogRepository {
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM blogs_cw WHERE category_id = $1 AND status = $2 AND visibility = $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5`,
+      `SELECT b.*, u.first_name as author_first_name, u.last_name as author_last_name 
+       FROM blogs_cw b
+       LEFT JOIN users_cw u ON b.author_id = u.id
+       WHERE b.category_id = $1 AND b.status = $2 AND b.visibility = $3 
+       ORDER BY b.created_at DESC LIMIT $4 OFFSET $5`,
       [categoryId, 'PUBLISHED', 'PUBLIC', limit, offset]
     );
 
@@ -207,7 +255,11 @@ export class BlogRepository {
     const total = parseInt(countResult.rows[0].count);
 
     const result = await query(
-      `SELECT * FROM blogs_cw WHERE (title ILIKE $1 OR keywords ILIKE $1) AND status = $2 AND visibility = $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5`,
+      `SELECT b.*, u.first_name as author_first_name, u.last_name as author_last_name 
+       FROM blogs_cw b
+       LEFT JOIN users_cw u ON b.author_id = u.id
+       WHERE (b.title ILIKE $1 OR b.keywords ILIKE $1) AND b.status = $2 AND b.visibility = $3 
+       ORDER BY b.created_at DESC LIMIT $4 OFFSET $5`,
       [searchPattern, 'PUBLISHED', 'PUBLIC', limit, offset]
     );
 
@@ -219,7 +271,11 @@ export class BlogRepository {
    */
   static async getStickyBlogs(limit: number = 5): Promise<Blog[]> {
     const result = await query(
-      `SELECT * FROM blogs_cw WHERE is_sticky = true AND status = 'PUBLISHED' AND visibility = 'PUBLIC' ORDER BY created_at DESC LIMIT $1`,
+      `SELECT b.*, u.first_name as author_first_name, u.last_name as author_last_name 
+       FROM blogs_cw b
+       LEFT JOIN users_cw u ON b.author_id = u.id
+       WHERE b.is_sticky = true AND b.status = 'PUBLISHED' AND b.visibility = 'PUBLIC' 
+       ORDER BY b.created_at DESC LIMIT $1`,
       [limit]
     );
     return result.rows as Blog[];
@@ -230,7 +286,11 @@ export class BlogRepository {
    */
   static async getHomepageBlogs(limit: number = 10): Promise<Blog[]> {
     const result = await query(
-      `SELECT * FROM blogs_cw WHERE show_on_homepage = true AND status = 'PUBLISHED' AND visibility = 'PUBLIC' ORDER BY created_at DESC LIMIT $1`,
+      `SELECT b.*, u.first_name as author_first_name, u.last_name as author_last_name 
+       FROM blogs_cw b
+       LEFT JOIN users_cw u ON b.author_id = u.id
+       WHERE b.show_on_homepage = true AND b.status = 'PUBLISHED' AND b.visibility = 'PUBLIC' 
+       ORDER BY b.created_at DESC LIMIT $1`,
       [limit]
     );
     return result.rows as Blog[];

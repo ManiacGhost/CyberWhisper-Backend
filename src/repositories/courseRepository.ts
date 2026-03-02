@@ -1,7 +1,26 @@
 import { query } from '../config/database';
 import { Course } from '../types/course';
+import { convertS3UrlToPresigned } from '../utils/s3Upload';
 
 export class CourseRepository {
+  /**
+   * Convert brochure URLs to presigned URLs for a single course
+   */
+  private static async convertBrochureUrlsInCourse(course: Course): Promise<Course> {
+    if (course.brochure_url) {
+      const presignedUrl = await convertS3UrlToPresigned(course.brochure_url, 86400); // 24 hours
+      return { ...course, brochure_url: presignedUrl };
+    }
+    return course;
+  }
+
+  /**
+   * Convert brochure URLs to presigned URLs for multiple courses
+   */
+  private static async convertBrochureUrlsInCourses(courses: Course[]): Promise<Course[]> {
+    return Promise.all(courses.map(course => this.convertBrochureUrlsInCourse(course)));
+  }
+
   /**
    * Get all courses with optional pagination and filtering
    */
@@ -48,7 +67,8 @@ export class CourseRepository {
     const allParams = [...params, limit, offset];
     const result = await query(coursesQuery, allParams);
 
-    return { courses: result.rows as Course[], total };
+    const courses = await this.convertBrochureUrlsInCourses(result.rows as Course[]);
+    return { courses, total };
   }
 
   /**
@@ -56,7 +76,10 @@ export class CourseRepository {
    */
   static async getCourseById(id: number): Promise<Course | null> {
     const result = await query('SELECT * FROM course WHERE id = $1', [id]);
-    return result.rows.length > 0 ? (result.rows[0] as Course) : null;
+    if (result.rows.length === 0) return null;
+    
+    const course = result.rows[0] as Course;
+    return this.convertBrochureUrlsInCourse(course);
   }
 
   /**
@@ -81,7 +104,8 @@ export class CourseRepository {
       [categoryId, limit, offset]
     );
 
-    return { courses: result.rows as Course[], total };
+    const courses = await this.convertBrochureUrlsInCourses(result.rows as Course[]);
+    return { courses, total };
   }
 
   /**
@@ -106,7 +130,8 @@ export class CourseRepository {
       [creatorId, limit, offset]
     );
 
-    return { courses: result.rows as Course[], total };
+    const courses = await this.convertBrochureUrlsInCourses(result.rows as Course[]);
+    return { courses, total };
   }
 
   /**
@@ -120,7 +145,7 @@ export class CourseRepository {
        LIMIT $1`,
       [limit]
     );
-    return result.rows as Course[];
+    return this.convertBrochureUrlsInCourses(result.rows as Course[]);
   }
 
   /**
@@ -143,7 +168,8 @@ export class CourseRepository {
       [limit, offset]
     );
 
-    return { courses: result.rows as Course[], total };
+    const courses = await this.convertBrochureUrlsInCourses(result.rows as Course[]);
+    return { courses, total };
   }
 
   /**
@@ -173,7 +199,8 @@ export class CourseRepository {
       [searchPattern, limit, offset]
     );
 
-    return { courses: result.rows as Course[], total };
+    const courses = await this.convertBrochureUrlsInCourses(result.rows as Course[]);
+    return { courses, total };
   }
 
   /**
@@ -249,7 +276,8 @@ export class CourseRepository {
       [...params, limit, offset]
     );
 
-    return { courses: result.rows as Course[], total };
+    const courses = await this.convertBrochureUrlsInCourses(result.rows as Course[]);
+    return { courses, total };
   }
 
   /**
@@ -274,7 +302,8 @@ export class CourseRepository {
       [level, limit, offset]
     );
 
-    return { courses: result.rows as Course[], total };
+    const courses = await this.convertBrochureUrlsInCourses(result.rows as Course[]);
+    return { courses, total };
   }
 
   /**
@@ -297,7 +326,8 @@ export class CourseRepository {
       [limit, offset]
     );
 
-    return { courses: result.rows as Course[], total };
+    const courses = await this.convertBrochureUrlsInCourses(result.rows as Course[]);
+    return { courses, total };
   }
 
   /**

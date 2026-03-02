@@ -158,23 +158,29 @@ Never share this OTP with anyone. If you didn't request this, please ignore this
  */
 export async function sendOTPToAdmin(email: string): Promise<{ success: boolean; message: string }> {
   try {
+    console.log(`🔐 Starting OTP process for email: ${email}`);
+    
     // Generate OTP
     const otpCode = generateOTP();
+    console.log(`✓ OTP generated: ${otpCode}`);
 
     // Store OTP in database
     await OTPRepository.createOTP(email, otpCode, 10); // 10 minutes expiry
+    console.log(`✓ OTP stored in database for ${email}`);
 
     // Send OTP via email
+    console.log(`📧 Sending OTP email to ${email}...`);
     const emailSent = await sendOTPEmail(email, otpCode);
 
     if (!emailSent) {
+      console.error(`❌ Failed to send OTP email to ${email}`);
       return {
         success: false,
         message: 'Failed to send OTP. Please try again.',
       };
     }
 
-    console.log(`✓ OTP sent to ${email}`);
+    console.log(`✓ OTP sent successfully to ${email}`);
     return {
       success: true,
       message: 'OTP has been sent to your email. Please check your inbox.',

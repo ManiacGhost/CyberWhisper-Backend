@@ -192,4 +192,12 @@ export class UserRepository {
 
     return { users: result.rows as User[], total };
   }
+
+  /**
+   * Count users by role
+   */
+  static async countUsersByRole(role: 'ADMIN' | 'SUPERADMIN' | 'INSTRUCTOR' | 'STUDENT'): Promise<number> {
+    const result = await query('SELECT COUNT(*) as count FROM users_cw WHERE role = $1', [role]);
+    return parseInt(result.rows[0].count);
+  }
 }
