@@ -5,6 +5,8 @@ import { uploadImageToCloudinary, deleteImageFromCloudinary, extractPublicIdFrom
 import { CreateBlogRequest, UpdateBlogRequest } from '../types/blog';
 import { asyncHandler } from '../middleware/errorHandler';
 import { generateUniqueSlug } from '../utils/slugGenerator';
+import { logAudit, getChangedFields, logContentStatusChange, getClientIp } from '../utils/auditLogger';
+import { AuthRequest, authMiddleware } from '../middleware/adminAuthMiddleware';
 
 // Extend Express Request to include file property from multer
 interface MulterRequest extends Request {
@@ -96,7 +98,8 @@ router.post(
  */
 router.post(
   '/',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const {
       title,
       slug,
@@ -208,6 +211,18 @@ router.post(
     };
 
     const blog = await BlogRepository.createBlog(blogData);
+
+    // Log the creation
+    const authReq = req as AuthRequest;
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'CREATE',
+      entityType: 'BLOG',
+      entityId: blog.id,
+      entityName: blog.title,
+      newValues: blog,
+      req,
+    });
 
     res.status(201).json({
       success: true,
@@ -440,7 +455,8 @@ router.get(
  */
 router.put(
   '/:id',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
@@ -509,6 +525,34 @@ router.put(
       return;
     }
 
+    // Log the update with before/after values
+    const authReq = req as AuthRequest;
+    const { oldValues, newValues } = getChangedFields(blog, updatedBlog);
+
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'UPDATE',
+      entityType: 'BLOG',
+      entityId: id,
+      entityName: updatedBlog.title,
+      oldValues,
+      newValues,
+      req,
+    });
+
+    // Log status change if status was updated
+    if (req.body.status && blog.status !== req.body.status) {
+      await logContentStatusChange(
+        'BLOG',
+        id,
+        updatedBlog.title,
+        blog.status,
+        req.body.status,
+        authReq.user?.userId,
+        getClientIp(req)
+      );
+    }
+
     res.json({
       success: true,
       data: updatedBlog,
@@ -522,7 +566,8 @@ router.put(
  */
 router.delete(
   '/:id',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
@@ -567,6 +612,18 @@ router.delete(
       });
       return;
     }
+
+    // Log the deletion
+    const authReq = req as AuthRequest;
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'DELETE',
+      entityType: 'BLOG',
+      entityId: id,
+      entityName: blog.title,
+      oldValues: blog,
+      req,
+    });
 
     res.json({
       success: true,

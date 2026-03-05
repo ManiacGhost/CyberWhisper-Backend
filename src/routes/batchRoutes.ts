@@ -3,6 +3,8 @@ import { BatchRepository } from '../repositories/batchRepository';
 import { BatchEnrollmentRepository } from '../repositories/batchEnrollmentRepository';
 import { CreateBatchRequest, UpdateBatchRequest } from '../types/batch';
 import { asyncHandler } from '../middleware/errorHandler';
+import { logAudit, getChangedFields } from '../utils/auditLogger';
+import { authMiddleware, AuthRequest } from '../middleware/adminAuthMiddleware';
 
 const router = Router();
 
@@ -12,7 +14,8 @@ const router = Router();
  */
 router.post(
   '/',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const {
       course_id,
       program_name,
@@ -69,6 +72,18 @@ router.post(
     };
 
     const batch = await BatchRepository.createBatch(batchData);
+
+    // Log the creation
+    const authReq = req as AuthRequest;
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'CREATE',
+      entityType: 'BATCH',
+      entityId: batch.id,
+      entityName: batch.program_name,
+      newValues: batch,
+      req,
+    });
 
     res.status(201).json({
       success: true,
@@ -465,7 +480,8 @@ router.get(
  */
 router.post(
   '/:id',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
@@ -506,6 +522,21 @@ router.post(
       return;
     }
 
+    // Log the update with before/after values
+    const authReq = req as AuthRequest;
+    const { oldValues, newValues } = getChangedFields(batch, updatedBatch);
+
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'UPDATE',
+      entityType: 'BATCH',
+      entityId: id,
+      entityName: updatedBatch.program_name,
+      oldValues,
+      newValues,
+      req,
+    });
+
     res.json({
       success: true,
       data: updatedBatch,
@@ -519,7 +550,8 @@ router.post(
  */
 router.delete(
   '/:id',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
@@ -549,6 +581,18 @@ router.delete(
       });
       return;
     }
+
+    // Log the deletion
+    const authReq = req as AuthRequest;
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'DELETE',
+      entityType: 'BATCH',
+      entityId: id,
+      entityName: batch.program_name,
+      oldValues: batch,
+      req,
+    });
 
     res.json({
       success: true,

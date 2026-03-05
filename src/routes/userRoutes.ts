@@ -4,6 +4,8 @@ import { UserRepository } from '../repositories/userRepository';
 import { uploadImageToCloudinary, deleteImageFromCloudinary, extractPublicIdFromUrl } from '../utils/imageUpload';
 import { UserResponse, CreateUserRequest, UpdateUserRequest } from '../types/user';
 import { asyncHandler } from '../middleware/errorHandler';
+import { logAudit, getChangedFields, logUserStatusChange, getClientIp } from '../utils/auditLogger';
+import { authMiddleware, AuthRequest } from '../middleware/adminAuthMiddleware';
 
 interface MulterRequest extends Request {
   file?: any;
@@ -63,7 +65,8 @@ router.post(
  */
 router.post(
   '/',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const { first_name, last_name, email, phone, password, title, address, biography, linkedin_url, github_url, role, is_instructor, profile_image_url } = req.body;
 
     // Validate required fields
@@ -136,8 +139,19 @@ router.post(
 
     const user = await UserRepository.createUser(userData);
 
-    // Remove password hash from response
+    // Log the creation
+    const authReq = req as AuthRequest;
     const { password_hash, ...userWithoutPassword } = user;
+    
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'CREATE',
+      entityType: 'USER',
+      entityId: user.id,
+      entityName: `${user.first_name} ${user.last_name}`,
+      newValues: userWithoutPassword as any,
+      req,
+    });
 
     const response: UserResponse = {
       success: true,
@@ -299,7 +313,8 @@ router.get(
  */
 router.post(
   '/:id/update',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
@@ -392,6 +407,38 @@ router.post(
       return;
     }
 
+    // Log the update with before/after values
+    const authReq = req as AuthRequest;
+    const { password_hash: oldPwd, ...oldUserWithoutPassword } = user;
+    const { password_hash: newPwd, ...updatedUserWithoutPassword } = updatedUser;
+    const { oldValues, newValues } = getChangedFields(
+      oldUserWithoutPassword as any,
+      updatedUserWithoutPassword as any
+    );
+
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'UPDATE',
+      entityType: 'USER',
+      entityId: id,
+      entityName: `${updatedUser.first_name} ${updatedUser.last_name}`,
+      oldValues,
+      newValues,
+      req,
+    });
+
+    // Log status change if status was updated
+    if (req.body.status && user.status !== req.body.status) {
+      await logUserStatusChange(
+        id,
+        user.status,
+        req.body.status,
+        authReq.user?.userId,
+        getClientIp(req),
+        'Status updated by admin'
+      );
+    }
+
     const { password_hash, ...userWithoutPassword } = updatedUser;
 
     const response: UserResponse = {
@@ -409,7 +456,8 @@ router.post(
  */
 router.delete(
   '/:id',
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  authMiddleware,
+  asyncHandler(async (req: AuthRequest, res: Response): Promise<void> => {
     const id = parseInt(req.params.id as string);
 
     if (isNaN(id)) {
@@ -447,6 +495,20 @@ router.delete(
       });
       return;
     }
+
+    // Log the deletion
+    const authReq = req as AuthRequest;
+    const { password_hash, ...userWithoutPassword } = user;
+    
+    await logAudit({
+      userId: authReq.user?.userId,
+      action: 'DELETE',
+      entityType: 'USER',
+      entityId: id,
+      entityName: `${user.first_name} ${user.last_name}`,
+      oldValues: userWithoutPassword as any,
+      req,
+    });
 
     res.json({
       success: true,

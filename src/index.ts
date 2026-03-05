@@ -18,6 +18,7 @@ import adminAuthRoutes from './routes/adminAuthRoutes';
 import deployTeamTrainingRoutes from './routes/deployTeamTrainingRoutes';
 import brochureDownloadRoutes from './routes/brochureDownloadRoutes';
 import courseEnrollmentRoutes from './routes/courseEnrollmentRoutes';
+import auditLogRoutes from './routes/auditLogRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { getConnection } from './config/database';
 
@@ -167,6 +168,7 @@ app.use('/api/deploy-team-training', deployTeamTrainingRoutes);
 app.use('/api/admin', adminAuthRoutes);
 app.use('/api/brochure-downloads', brochureDownloadRoutes);
 app.use('/api/course-enrollments', courseEnrollmentRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

@@ -4,6 +4,7 @@ import { CourseRepository } from '../repositories/courseRepository';
 import { CourseResponse, Course } from '../types/course';
 import { authMiddleware, adminOnlyMiddleware, AuthRequest } from '../middleware/adminAuthMiddleware';
 import { uploadImageToCloudinary } from '../utils/imageUpload';
+import { logAudit, getChangedFields, logContentStatusChange, getClientIp } from '../utils/auditLogger';
 
 // Extend Express Request to include file property from multer
 interface MulterRequest extends Request {
@@ -455,6 +456,17 @@ router.post('/add/admin', authMiddleware, adminOnlyMiddleware, async (req: AuthR
 
     const newCourse = await CourseRepository.createCourse(courseData);
 
+    // Log the creation
+    await logAudit({
+      userId: req.user?.userId,
+      action: 'CREATE',
+      entityType: 'COURSE',
+      entityId: newCourse.id,
+      entityName: newCourse.title || 'Untitled Course',
+      newValues: newCourse,
+      req,
+    });
+
     const response: CourseResponse = {
       success: true,
       message: 'Course created successfully',
@@ -486,6 +498,14 @@ router.put('/update/admin/:id', authMiddleware, adminOnlyMiddleware, async (req:
       });
     }
 
+    const oldCourse = await CourseRepository.getCourseById(id);
+    if (!oldCourse) {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found',
+      });
+    }
+
     const courseData = req.body as Partial<Course>;
 
     const updatedCourse = await CourseRepository.updateCourse(id, courseData);
@@ -495,6 +515,32 @@ router.put('/update/admin/:id', authMiddleware, adminOnlyMiddleware, async (req:
         success: false,
         error: 'Course not found',
       });
+    }
+
+    // Log the update with before/after values
+    const { oldValues, newValues } = getChangedFields(oldCourse, updatedCourse);
+    await logAudit({
+      userId: req.user?.userId,
+      action: 'UPDATE',
+      entityType: 'COURSE',
+      entityId: id,
+      entityName: updatedCourse.title || 'Untitled Course',
+      oldValues,
+      newValues,
+      req,
+    });
+
+    // Log status change if status was updated
+    if (req.body.status && oldCourse.status && oldCourse.status !== req.body.status) {
+      await logContentStatusChange(
+        'COURSE',
+        id,
+        updatedCourse.title || 'Untitled Course',
+        oldCourse.status,
+        req.body.status,
+        req.user?.userId,
+        getClientIp(req)
+      );
     }
 
     const response: CourseResponse = {
@@ -527,6 +573,14 @@ router.delete('/delete/admin/:id', authMiddleware, adminOnlyMiddleware, async (r
       });
     }
 
+    const course = await CourseRepository.getCourseById(id);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found',
+      });
+    }
+
     const deleted = await CourseRepository.deleteCourse(id);
 
     if (!deleted) {
@@ -535,6 +589,17 @@ router.delete('/delete/admin/:id', authMiddleware, adminOnlyMiddleware, async (r
         error: 'Course not found',
       });
     }
+
+    // Log the deletion
+    await logAudit({
+      userId: req.user?.userId,
+      action: 'DELETE',
+      entityType: 'COURSE',
+      entityId: id,
+      entityName: course.title || 'Untitled Course',
+      oldValues: course,
+      req,
+    });
 
     const response: CourseResponse = {
       success: true,
