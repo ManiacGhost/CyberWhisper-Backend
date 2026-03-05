@@ -16,7 +16,7 @@ const router = Router();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit for brochures
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB limit for brochures
   fileFilter: (_req: Request, file: any, cb: any) => {
     const allowedMimes = [
       'application/pdf',
