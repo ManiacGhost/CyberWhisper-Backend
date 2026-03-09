@@ -14,6 +14,7 @@ export interface AuditLog {
   status: string;
   error_message: string | null;
   timestamp: Date;
+  user_email?: string | null;
 }
 
 export interface UserStatusHistory {
@@ -102,8 +103,13 @@ export class AuditLogRepository {
 
       // Get logs with pagination
       const logsQuery = `
-        SELECT * FROM audit_logs ${whereClause}
-        ORDER BY timestamp DESC
+        SELECT 
+          al.*,
+          u.email as user_email
+        FROM audit_logs al
+        LEFT JOIN users_cw u ON al.user_id = u.id
+        ${whereClause}
+        ORDER BY al.timestamp DESC
         LIMIT $${paramIndex++} OFFSET $${paramIndex++}
       `;
       params.push(limit, offset);
@@ -126,9 +132,13 @@ export class AuditLogRepository {
   ): Promise<AuditLog[]> {
     try {
       const result = await query(
-        `SELECT * FROM audit_logs 
-         WHERE entity_type = $1 AND entity_id = $2
-         ORDER BY timestamp DESC
+        `SELECT 
+           al.*,
+           u.email as user_email
+         FROM audit_logs al
+         LEFT JOIN users_cw u ON al.user_id = u.id
+         WHERE al.entity_type = $1 AND al.entity_id = $2
+         ORDER BY al.timestamp DESC
          LIMIT $3`,
         [entityType, entityId, limit]
       );
@@ -148,9 +158,13 @@ export class AuditLogRepository {
   ): Promise<AuditLog[]> {
     try {
       const result = await query(
-        `SELECT * FROM audit_logs 
-         WHERE user_id = $1
-         ORDER BY timestamp DESC
+        `SELECT 
+           al.*,
+           u.email as user_email
+         FROM audit_logs al
+         LEFT JOIN users_cw u ON al.user_id = u.id
+         WHERE al.user_id = $1
+         ORDER BY al.timestamp DESC
          LIMIT $2`,
         [userId, limit]
       );
@@ -252,9 +266,13 @@ export class AuditLogRepository {
 
       // Get recent activity
       const recentResult = await query(
-        `SELECT * FROM audit_logs 
-         WHERE timestamp >= $1
-         ORDER BY timestamp DESC
+        `SELECT 
+           al.*,
+           u.email as user_email
+         FROM audit_logs al
+         LEFT JOIN users_cw u ON al.user_id = u.id
+         WHERE al.timestamp >= $1
+         ORDER BY al.timestamp DESC
          LIMIT 20`,
         [startDate]
       );
@@ -306,15 +324,20 @@ export class AuditLogRepository {
     entityType?: string
   ): Promise<AuditLog[]> {
     try {
-      let query_str = `SELECT * FROM audit_logs WHERE timestamp >= $1 AND timestamp <= $2`;
+      let query_str = `SELECT 
+        al.*,
+        u.email as user_email
+      FROM audit_logs al
+      LEFT JOIN users_cw u ON al.user_id = u.id
+      WHERE al.timestamp >= $1 AND al.timestamp <= $2`;
       const params: any[] = [startDate, endDate];
 
       if (entityType) {
-        query_str += ` AND entity_type = $3`;
+        query_str += ` AND al.entity_type = $3`;
         params.push(entityType);
       }
 
-      query_str += ` ORDER BY timestamp DESC`;
+      query_str += ` ORDER BY al.timestamp DESC`;
 
       const result = await query(query_str, params);
       return result.rows as AuditLog[];

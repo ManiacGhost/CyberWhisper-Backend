@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { QuoteRepository } from '../repositories/quoteRepository';
+import { UserRepository } from '../repositories/userRepository';
 import { sendQuotationEmail, sendAdminNotification } from '../utils/emailService';
 import { asyncHandler } from '../middleware/errorHandler';
 import { CreateQuoteRequest } from '../types/quote';
@@ -44,16 +45,20 @@ router.post(
       });
 
       // Send email to user
-      const emailSent = await sendQuotationEmail(name, email, phone, message);
+      const userEmailSent = await sendQuotationEmail(name, email, phone, message);
 
-      // Send notification to admin
-      await sendAdminNotification(name, email, phone, message);
+      // Fetch superadmin and send notification to admin
+      const superadmin = await UserRepository.getSuperadmin();
+      const adminEmailSent = await sendAdminNotification(name, email, phone, message, superadmin?.email);
 
       res.status(201).json({
         success: true,
         message: 'Quotation request received successfully',
         data: quote,
-        emailSent,
+        emailsSent: {
+          userEmail: userEmailSent,
+          adminEmail: adminEmailSent,
+        },
       });
     } catch (error) {
       console.error('Error creating quote:', error);

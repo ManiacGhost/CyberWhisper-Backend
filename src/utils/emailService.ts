@@ -169,7 +169,7 @@ export const sendQuotationEmail = async (
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎓 CyberWhisper</h1>
+          <img src="https://res.cloudinary.com/dwpkrvrfk/image/upload/v1773040767/cyberw_logo_hljoug.jpg" alt="CyberWhisper" style="height: 60px; margin-bottom: 15px;" />
           <p>Your Request Has Been Received</p>
         </div>
         
@@ -232,11 +232,6 @@ export const sendQuotationEmail = async (
         
         <div class="footer">
           <p>© 2026 CyberWhisper. All rights reserved.</p>
-          <div class="social-links">
-            <a href="#">Twitter</a>
-            <a href="#">LinkedIn</a>
-            <a href="#">Facebook</a>
-          </div>
           <p>This is an automated response. Please do not reply to this email.</p>
         </div>
       </div>
@@ -258,12 +253,22 @@ export const sendAdminNotification = async (
   name: string,
   email: string,
   phone: string,
-  message?: string
+  message?: string,
+  superadminEmail?: string
 ): Promise<boolean> => {
   const adminEmail = process.env.ADMIN_EMAIL || process.env.BREVO_EMAIL || '';
+  
+  // Collect all recipient emails
+  const recipientEmails = [];
+  if (adminEmail) {
+    recipientEmails.push(adminEmail);
+  }
+  if (superadminEmail && superadminEmail !== adminEmail) {
+    recipientEmails.push(superadminEmail);
+  }
 
-  if (!adminEmail) {
-    console.warn('⚠️ ADMIN_EMAIL not configured');
+  if (recipientEmails.length === 0) {
+    console.warn('⚠️ No admin or superadmin email configured');
     return false;
   }
 
@@ -282,6 +287,7 @@ export const sendAdminNotification = async (
     <body>
       <div class="container">
         <div class="header">
+          <img src="https://res.cloudinary.com/dwpkrvrfk/image/upload/v1773040767/cyberw_logo_hljoug.jpg" alt="CyberWhisper" style="height: 60px; margin-bottom: 15px;" />
           <h2>📋 New Quotation Request</h2>
         </div>
         
@@ -299,11 +305,20 @@ export const sendAdminNotification = async (
     </html>
   `;
 
-  return await sendEmail({
-    to: adminEmail,
-    subject: `[QUOTATION] New Request from ${name}`,
-    html: htmlContent,
-  });
+  // Send to all recipient emails
+  let allSent = true;
+  for (const recipientEmail of recipientEmails) {
+    const sent = await sendEmail({
+      to: recipientEmail,
+      subject: `[QUOTATION] New Request from ${name}`,
+      html: htmlContent,
+    });
+    if (!sent) {
+      allSent = false;
+    }
+  }
+
+  return allSent;
 };
 
 /**

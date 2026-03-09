@@ -200,4 +200,12 @@ export class UserRepository {
     const result = await query('SELECT COUNT(*) as count FROM users_cw WHERE role = $1', [role]);
     return parseInt(result.rows[0].count);
   }
+
+  /**
+   * Get superadmin user
+   */
+  static async getSuperadmin(): Promise<User | null> {
+    const result = await query('SELECT * FROM users_cw WHERE role = $1 LIMIT 1', ['SUPERADMIN']);
+    return result.rows.length > 0 ? (result.rows[0] as User) : null;
+  }
 }
